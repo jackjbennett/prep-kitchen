@@ -62,28 +62,88 @@
   };
 
   /* ---------------- Space ---------------- */
+  // A small solar system at the edges of the screen: a ringed gas giant with a moon, a red
+  // planet, an ice planet with a thin ring, a far-off planet, a turning spiral galaxy, a comet,
+  // tumbling asteroids, a satellite, a flaring star and shooting stars.
+  function galaxyImage(G, dark){
+    const cv = document.createElement('canvas'); cv.width = cv.height = Math.ceil(G * 2);
+    const c = cv.getContext('2d');
+    c.translate(G, G);
+    const core = c.createRadialGradient(0, 0, 0, 0, 0, G * 0.35);
+    core.addColorStop(0, dark ? 'rgba(255,236,200,.9)' : 'rgba(255,226,180,.9)'); core.addColorStop(0.4, dark ? 'rgba(255,190,160,.35)' : 'rgba(240,170,200,.35)'); core.addColorStop(1, 'rgba(255,200,200,0)');
+    c.fillStyle = core; c.fillRect(-G, -G, G * 2, G * 2);
+    for(let arm = 0; arm < 3; arm++){
+      for(let i = 0; i < 520; i++){
+        const f = Math.pow(Math.random(), 0.7), r = f * G * 0.95;
+        const a = arm * TAU / 3 + f * 5.2 + rand(-0.32, 0.32) * (1 - f * 0.5);
+        const x = Math.cos(a) * r + rand(-3, 3), y = Math.sin(a) * r + rand(-3, 3);
+        const col = f < 0.25 ? [255, 225, 190] : (Math.random() < 0.5 ? [170, 190, 255] : [230, 160, 255]);
+        const al = (1 - f) * (dark ? 0.8 : 0.6) * rand(0.3, 1);
+        c.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${al})`;
+        c.beginPath(); c.arc(x, y, rand(0.4, 1.6) * (G / 160), 0, TAU); c.fill();
+      }
+    }
+    return cv;
+  }
+  function sphereImage(R, cols, craters, dark){
+    const cv = document.createElement('canvas'); cv.width = cv.height = Math.ceil(R * 2 + 4);
+    const c = cv.getContext('2d'), o = R + 2;
+    c.save(); c.beginPath(); c.arc(o, o, R, 0, TAU); c.clip();
+    const g = c.createRadialGradient(o - R * 0.4, o - R * 0.45, R * 0.05, o, o, R * 1.05);
+    g.addColorStop(0, cols[0]); g.addColorStop(0.5, cols[1]); g.addColorStop(1, cols[2]);
+    c.fillStyle = g; c.fillRect(0, 0, o * 2, o * 2);
+    for(let i = 0; i < craters; i++){
+      const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * R * 0.8, cr = rand(0.06, 0.2) * R;
+      const x = o + Math.cos(a) * rr, y = o + Math.sin(a) * rr;
+      c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.arc(x, y, cr, 0, TAU); c.fill();
+      c.fillStyle = 'rgba(255,255,255,.12)'; c.beginPath(); c.arc(x - cr * 0.25, y - cr * 0.25, cr * 0.7, 0, TAU); c.fill();
+    }
+    const sh = c.createRadialGradient(o - R * 0.55, o - R * 0.55, R * 0.4, o, o, R * 1.3);
+    sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, dark ? 'rgba(3,2,18,.85)' : 'rgba(40,20,90,.4)');
+    c.fillStyle = sh; c.fillRect(0, 0, o * 2, o * 2);
+    c.restore();
+    return cv;
+  }
+  function rockShape(){ const n = 7 + Math.floor(Math.random() * 4); return Array.from({length: n}, (_, i) => [i / n * TAU, rand(0.65, 1.1)]); }
   const space = {
     init(w, h, dark){
-      const k = scaleOf(w, h);
+      const k = scaleOf(w, h), M = Math.min(w, h);
       const layers = [{per: 4200, min: 18, max: 500, sp: 2, r: [0.3, 0.8]}, {per: 13000, min: 8, max: 180, sp: 6, r: [0.6, 1.3]}, {per: 45000, min: 4, max: 60, sp: 13, r: [1.1, 2.1]}];
       const stars = [];
       layers.forEach((L, li) => { for(let i = 0; i < count(w, h, L.per, L.min, L.max); i++) stars.push({x: rand(0, w), y: rand(0, h), r: rand(...L.r) * Math.max(0.55, k), sp: L.sp * k, li, ph: rand(0, TAU), f: rand(0.6, 2.2)}); });
-      const neb = (dark ? ['#7b2ff7', '#e0118f', '#0db8de', '#4b3bd6'] : ['#b9a7ff', '#ffb3e1', '#9fdcff', '#c6bfff'])
-        .map(c => ({c, x: rand(0.05, 0.95), y: rand(0.05, 0.8), r: rand(0.25, 0.45), ph: rand(0, TAU), sp: rand(0.02, 0.05)}));
-      const R = Math.min(w, h) * 0.16;
-      return {dark, k, stars, neb, planet: {x: w * 0.82, y: h * 0.74, R}, shots: [], nextShot: rand(1.5, 4)};
+      const neb = (dark ? ['#7b2ff7', '#e0118f', '#0db8de', '#4b3bd6', '#ff6a3d'] : ['#b9a7ff', '#ffb3e1', '#9fdcff', '#c6bfff', '#ffd0b0'])
+        .map(c => ({c, x: rand(0.05, 0.95), y: rand(0.05, 0.85), r: rand(0.22, 0.42), ph: rand(0, TAU), sp: rand(0.02, 0.05)}));
+      const G = M * 0.3;
+      const giantR = M * 0.2;
+      return {
+        dark, k, M, stars, neb,
+        galaxy: {img: galaxyImage(G, dark), x: w * 0.36, y: h * 0.3, G},
+        giant: {x: w * 0.84, y: h * 0.8, R: giantR},
+        red: {img: sphereImage(M * 0.055, dark ? ['#ffb08a', '#d2553a', '#5a1a14'] : ['#ffd0b8', '#e8795a', '#9a3a2a'], 9, dark), x: w * 0.9, y: h * 0.16, R: M * 0.055, ph: rand(0, TAU)},
+        ice: {img: sphereImage(M * 0.075, dark ? ['#e8fbff', '#7fcfe8', '#1b4a66'] : ['#ffffff', '#a9e4f5', '#4c8fb0'], 0, dark), x: w * 0.1, y: h * 0.84, R: M * 0.075, ph: rand(0, TAU)},
+        tiny: {img: sphereImage(M * 0.018, dark ? ['#fff4d6', '#e0b96a', '#6b4a1a'] : ['#fff8e6', '#f0cf8a', '#b08a40'], 2, dark), x: w * 0.6, y: h * 0.1, R: M * 0.018},
+        asteroids: Array.from({length: count(w, h, 70000, 6, 22)}, () => ({x: rand(0, w), off: rand(-1, 1), s: rand(3, 11) * Math.max(k, 0.35), rot: rand(0, TAU), vr: rand(-0.8, 0.8), sp: rand(10, 24) * k, shape: rockShape(), shade: rand(0.35, 0.7)})),
+        comet: {active: false, next: rand(3, 8)},
+        sat: {x: -80, next: rand(2, 6)},
+        shots: [], nextShot: rand(1.5, 4)
+      };
     },
     draw(ctx, s, t, dt, w, h){
-      const d = s.dark, k = s.k;
+      const d = s.dark, k = s.k, M = s.M;
       ctx.fillStyle = vgrad(ctx, h, d ? [[0, '#0d0a33'], [0.55, '#070620'], [1, '#03020c']] : [[0, '#f6f4ff'], [1, '#d9d2f6']]);
       ctx.fillRect(0, 0, w, h);
+      // Nebula clouds.
       ctx.globalCompositeOperation = d ? 'lighter' : 'source-over';
       const Rn = Math.max(w, h);
-      for(const n of s.neb) glow(ctx, (n.x + Math.sin(t * n.sp + n.ph) * 0.08) * w, (n.y + Math.cos(t * n.sp * 0.8 + n.ph) * 0.06) * h, n.r * Rn, n.c, d ? 0.16 : 0.3);
-      ctx.globalCompositeOperation = 'source-over';
+      for(const n of s.neb) glow(ctx, (n.x + Math.sin(t * n.sp + n.ph) * 0.08) * w, (n.y + Math.cos(t * n.sp * 0.8 + n.ph) * 0.06) * h, n.r * Rn, n.c, d ? 0.15 : 0.28);
+      // Spiral galaxy, tilted and slowly turning.
+      const Gx = s.galaxy;
+      ctx.save(); ctx.translate(Gx.x, Gx.y); ctx.rotate(-0.5); ctx.scale(1, 0.42); ctx.rotate(t * 0.025);
+      ctx.globalAlpha = d ? 0.75 : 0.55; ctx.drawImage(Gx.img, -Gx.G, -Gx.G); ctx.restore();
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
       // Stars drift left in three parallax layers and twinkle.
       for(const st of s.stars){
-        st.x -= st.sp * dt; if(st.x < -3) { st.x = w + 3; st.y = rand(0, h); }
+        st.x -= st.sp * dt; if(st.x < -3){ st.x = w + 3; st.y = rand(0, h); }
         const a = (d ? 0.9 : 0.55) * (0.55 + 0.45 * Math.sin(t * st.f + st.ph));
         ctx.fillStyle = d ? `rgba(255,255,255,${a})` : `rgba(70,55,170,${a * 0.8})`;
         ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, TAU); ctx.fill();
@@ -93,9 +153,70 @@
           ctx.beginPath(); ctx.moveTo(st.x - L, st.y); ctx.lineTo(st.x + L, st.y); ctx.moveTo(st.x, st.y - L); ctx.lineTo(st.x, st.y + L); ctx.stroke();
         }
       }
-      // Ringed planet with a moon.
-      const {x: px, y: py, R} = s.planet;
-      const ma = t * 0.22, mx = px + Math.cos(ma) * R * 2.3, my = py + Math.sin(ma) * R * 0.55 - R * 0.1, mr = R * 0.2;
+      // A bright star with a lens flare in the top-left corner.
+      const fx = w * 0.06, fy = h * 0.09, fp = 0.85 + 0.15 * Math.sin(t * 1.3);
+      ctx.globalCompositeOperation = d ? 'lighter' : 'source-over';
+      glow(ctx, fx, fy, M * 0.22 * fp, d ? '#9fc4ff' : '#c9b8ff', d ? 0.35 : 0.4);
+      glow(ctx, fx, fy, M * 0.05, '#ffffff', d ? 0.9 : 0.8);
+      ctx.save(); ctx.translate(fx, fy); ctx.rotate(t * 0.05);
+      for(let i = 0; i < 4; i++){
+        ctx.rotate(Math.PI / 4);
+        const L = M * (i % 2 ? 0.09 : 0.17) * fp;
+        const g = ctx.createLinearGradient(-L, 0, L, 0);
+        g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, `rgba(255,255,255,${d ? 0.7 : 0.6})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g; ctx.fillRect(-L, -0.8 * Math.max(k, 0.5), L * 2, 1.6 * Math.max(k, 0.5));
+      }
+      ctx.restore();
+      // Flare ghosts along the line from the star toward the middle of the screen.
+      [[0.35, 0.02, '#8fd3ff'], [0.55, 0.012, '#ff9ee6'], [0.8, 0.03, '#b9a7ff']].forEach(([f, r, c]) => glow(ctx, fx + (w * 0.5 - fx) * f, fy + (h * 0.5 - fy) * f, M * r * 2, c, d ? 0.18 : 0.2));
+      ctx.globalCompositeOperation = 'source-over';
+      // Far-off and small planets float gently.
+      const tn = s.tiny; ctx.drawImage(tn.img, tn.x - tn.R - 2, tn.y - tn.R - 2 + Math.sin(t * 0.3) * 2 * k);
+      const rp = s.red, ry = rp.y + Math.sin(t * 0.25 + rp.ph) * 6 * k;
+      glow(ctx, rp.x, ry, rp.R * 1.8, d ? '#ff6a3d' : '#ffb08a', d ? 0.25 : 0.3);
+      ctx.drawImage(rp.img, rp.x - rp.R - 2, ry - rp.R - 2);
+      // Ice planet with a thin tilted ring.
+      const ip = s.ice, iy = ip.y + Math.sin(t * 0.2 + ip.ph) * 7 * k;
+      const iceRing = front => {
+        ctx.save(); ctx.translate(ip.x, iy); ctx.rotate(0.45);
+        ctx.strokeStyle = d ? 'rgba(190,240,255,.55)' : 'rgba(90,160,200,.55)'; ctx.lineWidth = ip.R * 0.07;
+        ctx.beginPath(); ctx.ellipse(0, 0, ip.R * 1.8, ip.R * 0.35, 0, front ? 0 : Math.PI, front ? Math.PI : TAU); ctx.stroke();
+        ctx.strokeStyle = d ? 'rgba(190,240,255,.25)' : 'rgba(90,160,200,.3)'; ctx.lineWidth = ip.R * 0.03;
+        ctx.beginPath(); ctx.ellipse(0, 0, ip.R * 2.05, ip.R * 0.41, 0, front ? 0 : Math.PI, front ? Math.PI : TAU); ctx.stroke();
+        ctx.restore();
+      };
+      glow(ctx, ip.x, iy, ip.R * 2, d ? '#6fe0ff' : '#a9e4f5', d ? 0.22 : 0.3);
+      iceRing(false); ctx.drawImage(ip.img, ip.x - ip.R - 2, iy - ip.R - 2); iceRing(true);
+      // Asteroid belt drifting diagonally across the lower middle.
+      for(const a of s.asteroids){
+        a.x += a.sp * dt; a.rot += a.vr * dt;
+        if(a.x > w + 20) a.x = -20;
+        const y = h * 0.62 + (a.x - w * 0.5) * -0.18 + a.off * h * 0.06;
+        ctx.save(); ctx.translate(a.x, y); ctx.rotate(a.rot);
+        const g = ctx.createLinearGradient(-a.s, -a.s, a.s, a.s);
+        g.addColorStop(0, d ? `rgba(180,170,210,${a.shade + 0.2})` : `rgba(150,140,190,${a.shade + 0.2})`); g.addColorStop(1, d ? `rgba(40,35,70,${a.shade + 0.2})` : `rgba(80,70,120,${a.shade})`);
+        ctx.fillStyle = g; ctx.beginPath();
+        a.shape.forEach(([ang, rr], i) => { const x = Math.cos(ang) * a.s * rr, yy = Math.sin(ang) * a.s * rr; i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy); });
+        ctx.closePath(); ctx.fill(); ctx.restore();
+      }
+      // Satellite crossing the top with solar panels and a blinking light.
+      const S2 = s.sat;
+      if(S2.x < -60 && dt > 0 && (S2.next -= dt) <= 0){ S2.x = w + 60; S2.y = rand(0.2, 0.4) * h; S2.next = rand(14, 24); }
+      if(S2.x >= -60){
+        S2.x -= 28 * k * dt;
+        const sy = S2.y + Math.sin(t * 0.4) * 5 * k, u = Math.max(k, 0.4) * 1.3;
+        ctx.save(); ctx.translate(S2.x, sy); ctx.rotate(-0.15 + Math.sin(t * 0.3) * 0.05);
+        ctx.fillStyle = d ? '#2b3f7a' : '#4a63b0'; ctx.strokeStyle = d ? 'rgba(160,190,255,.7)' : 'rgba(255,255,255,.8)'; ctx.lineWidth = 0.6;
+        [-1, 1].forEach(side => { ctx.fillRect(side * 7 * u - (side < 0 ? 16 * u : 0), -4 * u, 16 * u, 8 * u); ctx.strokeRect(side * 7 * u - (side < 0 ? 16 * u : 0), -4 * u, 16 * u, 8 * u); for(let i = 1; i < 4; i++){ const x = side * 7 * u - (side < 0 ? 16 * u : 0) + i * 4 * u; ctx.beginPath(); ctx.moveTo(x, -4 * u); ctx.lineTo(x, 4 * u); ctx.stroke(); } });
+        ctx.fillStyle = d ? '#d8d4e8' : '#f4f2fa'; ctx.fillRect(-7 * u, -5 * u, 14 * u, 10 * u);
+        ctx.fillStyle = d ? '#a9a3c4' : '#c9c4dc'; ctx.fillRect(-3 * u, -8 * u, 6 * u, 3 * u);
+        ctx.strokeStyle = d ? '#d8d4e8' : '#8a84a8'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, -8 * u); ctx.lineTo(3 * u, -14 * u); ctx.stroke();
+        if(Math.sin(t * 5) > 0.6){ glow(ctx, 3 * u, -14 * u, 6 * u, '#ff4d4d', 0.9); }
+        ctx.restore();
+      }
+      // Ringed gas giant with a moon, in the bottom-right corner.
+      const {x: px, y: py, R} = s.giant;
+      const ma = t * 0.2, mx = px + Math.cos(ma) * R * 2.2, my = py + Math.sin(ma) * R * 0.5 - R * 0.15, mr = R * 0.18;
       const moon = () => {
         const g = ctx.createRadialGradient(mx - mr * 0.4, my - mr * 0.4, mr * 0.1, mx, my, mr);
         g.addColorStop(0, d ? '#f4f1ff' : '#ffffff'); g.addColorStop(1, d ? '#6d6891' : '#a9a3cf');
@@ -103,40 +224,71 @@
         ctx.fillStyle = 'rgba(60,50,110,.25)';
         [[-0.3, -0.1, 0.22], [0.25, 0.25, 0.16], [0.1, -0.4, 0.12]].forEach(([a, b, r]) => { ctx.beginPath(); ctx.arc(mx + a * mr, my + b * mr, r * mr, 0, TAU); ctx.fill(); });
       };
-      const ring = (front) => {
+      const ring = front => {
         ctx.save(); ctx.translate(px, py); ctx.rotate(-0.38);
-        for(let i = 0; i < 3; i++){
-          ctx.strokeStyle = [d ? 'rgba(255,214,150,.55)' : 'rgba(255,190,120,.7)', d ? 'rgba(200,170,255,.35)' : 'rgba(160,130,240,.45)', d ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.5)'][i];
-          ctx.lineWidth = R * [0.1, 0.06, 0.03][i];
-          ctx.beginPath(); ctx.ellipse(0, 0, R * (1.65 + i * 0.16), R * (0.42 + i * 0.04), 0, front ? 0 : Math.PI, front ? Math.PI : TAU); ctx.stroke();
-        }
+        const cols = d ? ['rgba(255,214,150,.6)', 'rgba(230,180,255,.4)', 'rgba(255,255,255,.2)', 'rgba(255,200,140,.3)'] : ['rgba(255,190,120,.75)', 'rgba(170,130,240,.5)', 'rgba(255,255,255,.55)', 'rgba(255,170,110,.4)'];
+        [[1.6, 0.11], [1.78, 0.07], [1.92, 0.03], [2.05, 0.05]].forEach(([rr, lw], i) => {
+          ctx.strokeStyle = cols[i]; ctx.lineWidth = R * lw;
+          ctx.beginPath(); ctx.ellipse(0, 0, R * rr, R * rr * 0.26, 0, front ? 0 : Math.PI, front ? Math.PI : TAU); ctx.stroke();
+        });
         ctx.restore();
       };
-      glow(ctx, px, py, R * 2.4, d ? '#8f6bff' : '#b9a7ff', d ? 0.22 : 0.3);
+      glow(ctx, px, py, R * 2.6, d ? '#8f6bff' : '#b9a7ff', d ? 0.25 : 0.32);
       if(Math.sin(ma) < 0) moon();
       ring(false);
       ctx.save(); ctx.beginPath(); ctx.arc(px, py, R, 0, TAU); ctx.clip();
       const pg = ctx.createRadialGradient(px - R * 0.45, py - R * 0.5, R * 0.1, px, py, R * 1.05);
-      pg.addColorStop(0, d ? '#e9d4ff' : '#ffe6f6'); pg.addColorStop(0.45, d ? '#8a5cf0' : '#b48cff'); pg.addColorStop(1, d ? '#241563' : '#5b44c8');
+      pg.addColorStop(0, d ? '#ffe2c4' : '#fff0e0'); pg.addColorStop(0.4, d ? '#e0895a' : '#f2a878'); pg.addColorStop(0.75, d ? '#8a4ac8' : '#b48cff'); pg.addColorStop(1, d ? '#241563' : '#5b44c8');
       ctx.fillStyle = pg; ctx.fillRect(px - R, py - R, R * 2, R * 2);
-      // Cloud bands roll across the planet.
-      for(let i = 0; i < 7; i++){
-        const by = py - R + (i + 0.5) * (2 * R / 7);
-        ctx.strokeStyle = i % 2 ? `rgba(255,255,255,${d ? 0.12 : 0.22})` : `rgba(40,20,110,${d ? 0.18 : 0.14})`;
-        ctx.lineWidth = R * 0.11;
+      for(let i = 0; i < 9; i++){
+        const by = py - R + (i + 0.5) * (2 * R / 9);
+        ctx.strokeStyle = i % 2 ? `rgba(255,240,220,${d ? 0.14 : 0.25})` : `rgba(70,20,90,${d ? 0.2 : 0.14})`;
+        ctx.lineWidth = R * 0.09;
         ctx.beginPath();
-        for(let x = -R; x <= R; x += R / 12){
-          const y = by + Math.sin((x + t * 18 * s.k + i * 40) / R * 3.2) * R * 0.035;
+        for(let x = -R; x <= R; x += R / 14){
+          const y = by + Math.sin((x + t * 16 * k + i * 37) / R * 3.4) * R * 0.03;
           x === -R ? ctx.moveTo(px + x, y) : ctx.lineTo(px + x, y);
         }
         ctx.stroke();
       }
+      // A storm spot rolls across with the bands.
+      const spx = px + (wrap(t * 16 * k * 0.6, R * 3) - R * 1.5), spy = py + R * 0.28;
+      ctx.fillStyle = d ? 'rgba(255,150,110,.45)' : 'rgba(230,110,80,.4)'; ctx.beginPath(); ctx.ellipse(spx, spy, R * 0.16, R * 0.08, 0, 0, TAU); ctx.fill();
       const sh = ctx.createRadialGradient(px - R * 0.6, py - R * 0.6, R * 0.4, px, py, R * 1.25);
-      sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, d ? 'rgba(5,3,25,.75)' : 'rgba(40,20,110,.35)');
+      sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, d ? 'rgba(5,3,25,.78)' : 'rgba(40,20,110,.35)');
       ctx.fillStyle = sh; ctx.fillRect(px - R, py - R, R * 2, R * 2);
       ctx.restore();
+      // Thin bright atmosphere edge.
+      ctx.strokeStyle = d ? 'rgba(255,200,170,.35)' : 'rgba(255,255,255,.6)'; ctx.lineWidth = Math.max(1, R * 0.02);
+      ctx.beginPath(); ctx.arc(px, py, R, Math.PI * 1.05, Math.PI * 1.75); ctx.stroke();
       ring(true);
       if(Math.sin(ma) >= 0) moon();
+      // A comet glides across now and then, trailing dust.
+      const C = s.comet;
+      if(!C.active && dt > 0 && (C.next -= dt) <= 0){
+        const fromLeft = Math.random() < 0.5;
+        C.active = true; C.x = fromLeft ? -60 : w + 60; C.y = rand(0.08, 0.45) * h;
+        C.vx = (fromLeft ? 1 : -1) * rand(70, 110) * k; C.vy = rand(12, 30) * k; C.dust = []; C.next = rand(16, 28);
+      }
+      if(C.active){
+        C.x += C.vx * dt; C.y += C.vy * dt;
+        if(dt > 0 && Math.random() < 0.6) C.dust.push({x: C.x, y: C.y, vx: -C.vx * 0.05 + rand(-6, 6) * k, vy: rand(-6, 6) * k, life: 1});
+        const m = Math.hypot(C.vx, C.vy), ux = -C.vx / m, uy = -C.vy / m, L = 190 * Math.max(k, 0.35), Wd = 9 * Math.max(k, 0.35);
+        ctx.globalCompositeOperation = d ? 'lighter' : 'source-over';
+        for(const p of C.dust){ p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * 0.5; if(p.life > 0) glow(ctx, p.x, p.y, 4 * Math.max(k, 0.4), d ? '#bfe3ff' : '#8a7ae0', 0.35 * p.life); }
+        C.dust = C.dust.filter(p => p.life > 0);
+        const g = ctx.createLinearGradient(C.x, C.y, C.x + ux * L, C.y + uy * L);
+        g.addColorStop(0, d ? 'rgba(210,235,255,.85)' : 'rgba(120,100,230,.7)'); g.addColorStop(1, 'rgba(200,220,255,0)');
+        ctx.fillStyle = g; ctx.beginPath();
+        ctx.moveTo(C.x - uy * Wd * 0.3, C.y + ux * Wd * 0.3);
+        ctx.quadraticCurveTo(C.x + ux * L * 0.5 - uy * Wd, C.y + uy * L * 0.5 + ux * Wd, C.x + ux * L - uy * Wd * 1.6, C.y + uy * L + ux * Wd * 1.6);
+        ctx.lineTo(C.x + ux * L + uy * Wd * 1.6, C.y + uy * L - ux * Wd * 1.6);
+        ctx.quadraticCurveTo(C.x + ux * L * 0.5 + uy * Wd, C.y + uy * L * 0.5 - ux * Wd, C.x + uy * Wd * 0.3, C.y - ux * Wd * 0.3);
+        ctx.closePath(); ctx.fill();
+        glow(ctx, C.x, C.y, 16 * Math.max(k, 0.4), d ? '#e6f4ff' : '#7a6ae0', 0.9);
+        ctx.globalCompositeOperation = 'source-over';
+        if(C.x < -300 || C.x > w + 300 || C.y > h + 200) C.active = false;
+      }
       // Shooting stars.
       if(dt > 0 && (s.nextShot -= dt) <= 0){ s.nextShot = rand(3, 8); s.shots.push({x: rand(w * 0.2, w * 1.1), y: rand(-h * 0.05, h * 0.35), vx: -rand(420, 640) * k, vy: rand(160, 260) * k, life: 1}); }
       for(const sh2 of s.shots){
