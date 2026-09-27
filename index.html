@@ -646,7 +646,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.09.27.1527';
+const APP_VERSION = '2026.09.27.1529';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4};
 // Appearance saved on this device, used before sign-in and until the account's settings load.
 const LOCAL_APPEAR = (() => { try{ const a = JSON.parse(localStorage.getItem('pk-appearance') || '{}'); return a && typeof a === 'object' ? a : {}; }catch(e){ return {}; } })();
@@ -1417,7 +1417,7 @@ function viewSettings(){
         <h2>Appearance</h2>
         <div class="setrow"><div><b>Theme</b><p class="small muted">System follows your computer or phone.</p></div>${seg('theme', [['system','System'],['light','Light'],['dark','Dark']])}</div>
         <div class="setrow palrow">
-          <div><b>Color palette</b><p class="small muted">Changes the colors across the whole app. Themes also add a light background pattern. Each one has a light and a dark version.</p></div>
+          <div><b>Color palette</b><p class="small muted">Palettes change the colors and add soft moving color behind the app. Themes are full animated scenes. Each one has a light and a dark version, shown side by side.</p></div>
           ${[['palette','Palettes'],['theme','Themes']].map(([grp, title]) => `
             <div class="eyebrow" style="margin-top:6px">${title}</div>
             <div class="palgrid">${Object.entries(window.PK_PALETTES).filter(([, x]) => x.group === grp).map(([id, x]) => {
