@@ -81,6 +81,8 @@ body{background:var(--bg);color:var(--ink);font:15px/1.5 Figtree,system-ui,-appl
 .dash .span3{grid-column:1 / -1}
 @media (max-width:1100px){.dash{grid-template-columns:repeat(2,minmax(0,1fr))}.dash .span2{grid-column:1 / -1}}
 @media (max-width:700px){.dash{grid-template-columns:1fr}}
+.gtrack{display:flex;height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;margin-block:4px 2px}
+.gtrack i{display:block;height:100%}
 .todaynums{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 @media (max-width:620px){.todaynums{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .tnum{display:flex;flex-direction:column;gap:2px}
@@ -305,6 +307,15 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .acctbtns{display:flex;gap:6px;flex-wrap:wrap}
 .acctmail{font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #installbtn{width:100%}
+.suggest{position:absolute;z-index:50;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.18);max-height:min(430px,60vh);overflow-y:auto;padding:6px}
+.sg-h{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);padding:8px 10px 4px}
+.sg-item{padding:7px 10px;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;gap:1px}
+.sg-item:hover,.sg-item.on{background:var(--accent-soft)}
+.sg-name{font-weight:600;font-size:14px;line-height:1.3}
+.sg-sub{font-size:12px;color:var(--ink-2);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.sg-tag{font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 6px;background:var(--surface-2);color:var(--ink-2)}
+.sg-note{font-size:13px;color:var(--ink-2);padding:10px}
+.sg-foot{font-size:11px;color:var(--ink-2);padding:6px 10px 2px;border-top:1px solid var(--line);margin-top:4px}
 .labelform{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px}
 .welcome{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 </style>
@@ -555,6 +566,7 @@ const ui = {
   tab: TABS.some(t=>t[0]===lsGet('pk-tab')) ? lsGet('pk-tab') : 'today',
   pSearch:'', pNew:{name:'',qty:'',unit:'g',category:'Produce',lowAt:''},
   rSel:null, rScale:'', rEdit:null, rSearch:'', labelFor:null, label:{},
+  goalsEdit:false, gDraft:{},
   auth:{mode:'signin', email:'', password:'', busy:false, msg:'', err:''},
   acct:{newPw:'', msg:'', importText:''},
   prep:{recipeId:'', portions:'4', cookDate:T0, cooked:false, place:true, start:T0, slot:'Lunch'},
@@ -737,7 +749,7 @@ async function init(){
 function pantryHave(name, unit){
   let have = 0, found = false, mismatch = false;
   for(const p of list('pantry')){
-    if(key(p.name) !== key(name)) continue;
+    if(!pantryMatches(p.name, name)) continue;
     const c = conv(num(p.qty), p.unit, unit);
     if(c === null){ mismatch = true; continue; }
     found = true; have += c;
@@ -768,7 +780,7 @@ function deduct(needs){
     let left = n.qty;
     for(const p of list('pantry')){
       if(left <= 1e-9) break;
-      if(key(p.name) !== key(n.name)) continue;
+      if(!pantryMatches(p.name, n.name)) continue;
       const avail = conv(num(p.qty), p.unit, n.unit);
       if(avail === null || avail <= 0) continue;
       const take = Math.min(avail, left);
@@ -821,7 +833,11 @@ function niceQty(q, unit){
 /* ----- ingredient nutrition ----- */
 const r1 = v => Math.round(num(v)*10)/10;
 function savedFoods(){ return list('foods').map(f => ({...f, aliases: [...(f.aliases||[]), phrase(f.name)]})); }
-function findFood(name){
+function findFood(name, foodId){
+  if(foodId){
+    if(foodId.startsWith('builtin:')){ const b = builtinFoods().find(f => f.name === foodId.slice(8)); if(b) return b; }
+    else if(S.foods[foodId]) return {...S.foods[foodId], id: foodId};
+  }
   const p = phrase(name), pk = phrase(name, true);
   if(!p) return null;
   const pools = [savedFoods(), builtinFoods()];
@@ -843,7 +859,7 @@ function gramsOf(qty, unit, food){
 }
 function ingNutrition(ing){
   if(!String(ing.name||'').trim() || !(num(ing.qty) > 0)) return {status:'empty'};
-  const food = findFood(ing.name);
+  const food = findFood(ing.name, ing.foodId);
   if(!food) return {status:'unknown'};
   const g = gramsOf(ing.qty, ing.unit, food);
   if(g == null) return {status:'nopc', food};
@@ -859,7 +875,7 @@ function recipeCalc(ingredients, servings){
   const unknown = (ingredients||[]).filter((i,ix) => lines[ix].status === 'unknown' || lines[ix].status === 'nopc');
   return {lines, total, perServing, unknown};
 }
-const SRC_LABEL = {'built-in':'typical values', claude:'looked up by Claude', label:'from label', manual:'entered by you'};
+const SRC_LABEL = {'built-in':'typical values', usda:'USDA data', brand:'label data via USDA', claude:'saved values', label:'from your label', manual:'entered by you'};
 function ingInfoHtml(line){
   if(!line || line.status === 'empty') return '';
   if(line.status === 'unknown') return `<span class="miss">No nutrition info for this ingredient yet.</span>`;
@@ -892,6 +908,199 @@ function refreshEditorCalc(){
       : '';
   }
 }
+
+/* ---------- food search (typeahead) ---------- */
+// A pantry item counts for an ingredient when the names match, or the pantry name is a more
+// specific version ending in the same words ("Bell & Evans chicken breast" covers "chicken breast").
+function pantryMatches(pName, needName){
+  if(key(pName) === key(needName)) return true;
+  const a = phrase(pName), b = phrase(needName);
+  return !!a && !!b && (a === b || (' ' + a).endsWith(' ' + b));
+}
+const FDC_KEY = CFG.fdcKey || 'DEMO_KEY';
+const NID = {calories:[1008,2047,2048], protein:[1003], carbs:[1005], fat:[1004], fiber:[1079], sugar:[2000,1063], sodium:[1093], cholesterol:[1253], potassium:[1092], calcium:[1087], iron:[1089], vitA:[1106], vitC:[1162], vitD:[1114]};
+const SMALL_WORDS = new Set(['and','or','of','with','in','the','a','an','for','to','on']);
+function titleCase(s){
+  return String(s || '').toLowerCase().split(/(\s+)/).map((w, i) => (i && SMALL_WORDS.has(w)) ? w : w.replace(/^([^a-z]*)([a-z])/, (m, p, c) => p + c.toUpperCase())).join('');
+}
+function sentenceCase(s){ s = String(s || '').toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); }
+const HOUSEHOLD_ML = {cup:236.588, cups:236.588, tbsp:14.787, tablespoon:14.787, tablespoons:14.787, tsp:4.929, teaspoon:4.929, teaspoons:4.929, 'fl oz':29.574, floz:29.574};
+function densityFrom(text, grams){
+  const m = String(text || '').toLowerCase().match(/([\d.\/]+)\s*(cups?|tbsp|tablespoons?|tsp|teaspoons?|fl\.?\s?oz)/);
+  if(!m || !(grams > 0)) return null;
+  let q = m[1].includes('/') ? m[1].split('/').reduce((a, b) => num(a) / num(b)) : num(m[1]);
+  const ml = HOUSEHOLD_ML[m[2].replace('.', '').replace(/\s+/g, ' ')] || HOUSEHOLD_ML[m[2].replace(/[.\s]/g, '')];
+  if(!(q > 0) || !ml) return null;
+  const d = grams / (q * ml);
+  return d > 0.03 && d < 3 ? Math.round(d * 1000) / 1000 : null;
+}
+function fdcToFood(f){
+  const byId = {};
+  for(const n of f.foodNutrients || []) if(n && n.value != null && byId[n.nutrientId] == null) byId[n.nutrientId] = num(n.value);
+  const get = ids => { for(const id of ids) if(byId[id] != null) return byId[id]; return null; };
+  if(get(NID.calories) == null) return null;
+  const per100 = Object.fromEntries(NUTR.map(([k]) => [k, r1(get(NID[k]) ?? 0)]));
+  if(byId[1106] == null && byId[1104] != null) per100.vitA = r1(byId[1104] * 0.3);
+  if(byId[1114] == null && byId[1110] != null) per100.vitD = r1(byId[1110] / 40);
+  const branded = f.dataType === 'Branded';
+  let desc = String(f.description || '');
+  let brand = '';
+  if(branded){
+    brand = titleCase(f.brandName || f.brandOwner || '');
+    for(const b of [f.brandName, f.brandOwner]) if(b && desc.toUpperCase().startsWith(String(b).toUpperCase())){ desc = desc.slice(String(b).length).replace(/^[\s,:;-]+/, ''); break; }
+  }
+  const unit = String(f.servingSizeUnit || '').toLowerCase();
+  const servingG = (unit === 'g' || unit === 'grm' || unit === 'ml' || unit === 'mlt') && num(f.servingSize) > 0 ? r1(f.servingSize) : null;
+  return {
+    id: 'fdc-' + f.fdcId, fdcId: f.fdcId, upc: f.gtinUpc || null,
+    name: branded ? `${brand} ${titleCase(desc)}`.trim() : sentenceCase(desc),
+    brand, source: branded ? 'brand' : 'usda', per100,
+    servingG, servingText: branded ? String(f.householdServingFullText || '').toLowerCase() : '',
+    gPerMl: densityFrom(f.householdServingFullText, servingG) || 1,
+    gPerPc: servingG, aliases: [], addedOn: today()
+  };
+}
+const fdcCache = new Map();
+let fdcLimited = false;
+async function fdcSearch(q, dataType, pageSize){
+  const k = dataType + '|' + pageSize + '|' + q.toLowerCase();
+  if(fdcCache.has(k)) return fdcCache.get(k);
+  const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(FDC_KEY)}&query=${encodeURIComponent(q)}&dataType=${encodeURIComponent(dataType)}&pageSize=${pageSize}&requireAllWords=true`;
+  const res = await fetch(url);
+  if(res.status === 429 || res.status === 403){ fdcLimited = true; throw new Error('limited'); }
+  if(!res.ok) throw new Error('http ' + res.status);
+  const j = await res.json();
+  const foods = (j.foods || []).map(fdcToFood).filter(Boolean);
+  fdcCache.set(k, foods); fdcLimited = false;
+  return foods;
+}
+function localMatches(q){
+  const words = phrase(q, true).split(' ').filter(Boolean);
+  if(!words.length) return {mine:[], common:[]};
+  const hit = name => { const w = phrase(name, true).split(' '); return words.every(q => w.some(x => x.startsWith(q))); };
+  const mine = list('foods').filter(f => hit(f.name)).slice(0, 6).map(f => ({...f, id: f.id}));
+  const common = builtinFoods().filter(f => hit(f.name) || f.aliases.some(a => hit(a))).slice(0, 6).map(f => ({...f, id: 'builtin:' + f.name}));
+  return {mine, common};
+}
+function foodLine(f){
+  const p = f.per100 || {};
+  if(f.source === 'brand' && f.servingG){
+    const m = f.servingG / 100;
+    return `${fk(p.calories*m)} kcal · ${r1(p.protein*m)} g protein per ${f.servingText ? esc(f.servingText) + ' (' + fq(f.servingG) + ' g)' : fq(f.servingG) + ' g'}`;
+  }
+  return `${fk(p.calories)} kcal · ${r1(p.protein)} g protein per 100 g`;
+}
+const SRC_TAG = {'built-in':'Common', usda:'USDA', brand:'Brand', label:'Your label', claude:'Saved', manual:'Saved'};
+
+const suggest = {el:null, input:null, kind:'', items:[], active:-1, q:'', timer:null, seq:0, loading:false, err:''};
+function suggestBox(){
+  if(!suggest.el){
+    suggest.el = document.createElement('div');
+    suggest.el.className = 'suggest'; suggest.el.id = 'suggest'; suggest.el.setAttribute('role', 'listbox'); suggest.el.hidden = true;
+    document.body.appendChild(suggest.el);
+    suggest.el.addEventListener('mousedown', ev => {
+      const it = ev.target.closest('[data-pick]'); if(!it) return;
+      ev.preventDefault(); pickFood(+it.dataset.pick);
+    });
+  }
+  return suggest.el;
+}
+function closeSuggest(){ clearTimeout(suggest.timer); suggest.seq++; if(suggest.el) suggest.el.hidden = true; suggest.input = null; suggest.items = []; suggest.active = -1; }
+function placeSuggest(){
+  const el = suggestBox(), inp = suggest.input && document.getElementById(suggest.input);
+  if(!inp){ closeSuggest(); return; }
+  const r = inp.getBoundingClientRect();
+  const w = Math.min(Math.max(r.width, 360), window.innerWidth - 16);
+  el.style.width = w + 'px';
+  el.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + window.scrollX + 'px';
+  el.style.top = r.bottom + window.scrollY + 4 + 'px';
+}
+function renderSuggest(){
+  const el = suggestBox();
+  const {mine, common, generic, brands} = suggest.groups || {};
+  suggest.items = [...(mine||[]), ...(common||[]), ...(generic||[]), ...(brands||[])];
+  let i = 0;
+  const sec = (title, arr) => arr && arr.length ? `<div class="sg-h">${title}</div>` + arr.map(f => { const n = i++; return `<div class="sg-item${n === suggest.active ? ' on' : ''}" data-pick="${n}" role="option" id="sg-${n}" aria-selected="${n === suggest.active}">
+      <div class="sg-name">${esc(f.name)}</div><div class="sg-sub"><span class="sg-tag">${SRC_TAG[f.source] || 'Saved'}</span>${foodLine(f)}</div></div>`; }).join('') : '';
+  let html = sec('Your foods', mine) + sec('Common foods', common) + sec('USDA', generic) + sec('Brands', brands);
+  if(suggest.loading) html += `<div class="sg-note">Searching brands…</div>`;
+  else if(suggest.err) html += `<div class="sg-note">${esc(suggest.err)}</div>`;
+  if(!html) html = `<div class="sg-note">No matches yet. Keep typing, or leave it as is.</div>`;
+  html += `<div class="sg-foot">Brand data: USDA FoodData Central</div>`;
+  el.innerHTML = html; el.hidden = false; placeSuggest();
+  const inp = document.getElementById(suggest.input);
+  if(inp){ inp.setAttribute('aria-expanded', 'true'); inp.setAttribute('aria-activedescendant', suggest.active >= 0 ? 'sg-' + suggest.active : ''); }
+}
+function openSuggest(inp){
+  const q = inp.value.trim();
+  suggest.input = inp.id; suggest.kind = inp.dataset.food; suggest.q = q; suggest.active = -1; suggest.err = '';
+  if(q.length < 2){ closeSuggest(); return; }
+  const loc = localMatches(q);
+  suggest.groups = {...loc, generic:[], brands:[]};
+  suggest.loading = true; renderSuggest();
+  clearTimeout(suggest.timer);
+  const seq = ++suggest.seq;
+  suggest.timer = setTimeout(async () => {
+    try{
+      const [generic, brands] = await Promise.all([fdcSearch(q, 'Foundation,SR Legacy', 6), fdcSearch(q, 'Branded', 25)]);
+      if(seq !== suggest.seq) return;
+      const seen = new Set();
+      const uniq = arr => arr.filter(f => { const k = f.name.toLowerCase() + '|' + fk(f.per100.calories); if(seen.has(k)) return false; seen.add(k); return true; });
+      suggest.groups = {...loc, generic: uniq(generic).slice(0, 5), brands: uniq(brands).slice(0, 20)};
+      suggest.err = '';
+    }catch(e){
+      if(seq !== suggest.seq) return;
+      suggest.err = fdcLimited ? 'Brand search is busy right now. Try again in a little while.' : 'Brand search needs an internet connection.';
+    }
+    suggest.loading = false;
+    if(suggest.input) renderSuggest();
+  }, 350);
+}
+function pickFood(n){
+  const f = suggest.items[n]; if(!f) return;
+  const inp = document.getElementById(suggest.input);
+  const kind = suggest.kind;
+  closeSuggest();
+  // Save USDA and brand picks to this person's foods so recipes keep their exact nutrition.
+  if(f.source === 'usda' || f.source === 'brand'){
+    const {id, ...doc} = f;
+    if(!S.foods[id]) put('foods', id, doc);
+  }
+  const name = f.name;
+  if(kind.startsWith('recipe:')){
+    const ing = ui.rEdit && ui.rEdit.ingredients[+kind.slice(7)];
+    if(ing){
+      ing.name = name; ing.foodId = f.id;
+      if(!ing.qty && f.source === 'brand' && f.servingG){ ing.qty = String(f.servingG); ing.unit = 'g'; }
+    }
+    render();
+    const q = document.getElementById(`f-rEdit-ingredients-${kind.slice(7)}-qty`); if(q){ q.focus(); q.select && q.select(); }
+    return;
+  }
+  const bind = inp && inp.dataset.bind;
+  if(bind){ setPath(ui, bind, name); const base = bind.split('.')[0]; if(ui[base] && typeof ui[base] === 'object') ui[base].foodId = f.id; }
+  if(inp){ inp.value = name; inp.focus(); }
+}
+document.addEventListener('input', ev => {
+  const inp = ev.target.closest && ev.target.closest('[data-food]');
+  if(!inp) return;
+  const kind = inp.dataset.food;
+  if(kind.startsWith('recipe:') && ui.rEdit){ const ing = ui.rEdit.ingredients[+kind.slice(7)]; if(ing) ing.foodId = null; }
+  else { const b = inp.dataset.bind && inp.dataset.bind.split('.')[0]; if(b && ui[b]) ui[b].foodId = null; }
+  openSuggest(inp);
+});
+document.addEventListener('keydown', ev => {
+  if(!suggest.input || suggest.el.hidden || ev.target.id !== suggest.input) return;
+  const n = suggest.items.length;
+  if(ev.key === 'ArrowDown' && n){ ev.preventDefault(); suggest.active = (suggest.active + 1) % n; renderSuggest(); document.getElementById('sg-' + suggest.active)?.scrollIntoView({block:'nearest'}); }
+  else if(ev.key === 'ArrowUp' && n){ ev.preventDefault(); suggest.active = (suggest.active - 1 + n) % n; renderSuggest(); document.getElementById('sg-' + suggest.active)?.scrollIntoView({block:'nearest'}); }
+  else if(ev.key === 'Enter' && suggest.active >= 0){ ev.preventDefault(); ev.stopImmediatePropagation(); pickFood(suggest.active); }
+  else if(ev.key === 'Escape'){ closeSuggest(); }
+  else if(ev.key === 'Enter'){ closeSuggest(); }
+}, true);
+document.addEventListener('focusout', ev => { if(ev.target.id && ev.target.id === suggest.input) setTimeout(() => { if(document.activeElement && document.activeElement.id === suggest.input) return; closeSuggest(); }, 120); });
+window.addEventListener('resize', () => { if(suggest.input) placeSuggest(); });
+window.addEventListener('scroll', () => { if(suggest.input) placeSuggest(); }, true);
 
 /* ---------- rendering ---------- */
 const $main = document.getElementById('main');
@@ -1006,6 +1215,8 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); instal
 window.addEventListener('appinstalled', () => { installEvent = null; if(user) renderTabs(); toast('Prep Kitchen is installed.'); });
 
 /* ----- Today ----- */
+const DEFAULT_GOALS = {calories:2200, protein:150, carbs:230, fat:70};
+function goals(){ return {...DEFAULT_GOALS, ...(S.settings.goals || {})}; }
 function dayTotals(date){
   const z = () => ({calories:0, protein:0, carbs:0, fat:0});
   const t = {eaten:z(), planned:z()};
@@ -1017,7 +1228,7 @@ function dayTotals(date){
   return t;
 }
 function viewToday(){
-  const t = today(), tot = dayTotals(t);
+  const t = today(), tot = dayTotals(t), G = goals();
   const meals = list('plan').filter(e => e.date === t).sort((a,b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
   const older = pendingAlerts().filter(e => e.date < t);
   const hr = new Date().getHours();
@@ -1046,13 +1257,20 @@ function viewToday(){
   ${older.length ? `<div class="notice row" style="justify-content:space-between">You have ${older.length} meal${older.length===1?'':'s'} from earlier days to confirm.<button class="btn sm" data-act="go" data-id="alerts">Review now</button></div>` : ''}
   <div class="dash">
     <div class="card span2">
-      <div class="cardhead"><h2>Today's nutrition</h2><span class="small muted">Eaten so far, plus what's still planned</span></div>
+      <div class="cardhead"><h2>Today's nutrition</h2>${ui.goalsEdit ? '' : '<button class="btn sm ghost" data-act="goalsEdit">Edit goals</button>'}</div>
+      ${ui.goalsEdit ? `<div class="row end" style="margin-bottom:16px">
+          ${[['calories','Calories (kcal)'],['protein','Protein (g)'],['carbs','Carbs (g)'],['fat','Fat (g)']].map(([k,l]) => `<label class="f">${l}<input id="f-gDraft-${k}" class="w-num" type="number" min="0" step="any" value="${esc(ui.gDraft[k])}" data-bind="gDraft.${k}" data-norender></label>`).join('')}
+          <button class="btn primary" data-act="goalsSave">Save goals</button><button class="btn ghost" data-act="goalsCancel">Cancel</button>
+        </div>` : ''}
       <div class="todaynums">
         ${[['calories','Calories','kcal','var(--accent)'],['protein','Protein','g','var(--protein)'],['carbs','Carbs','g','var(--carbs)'],['fat','Fat','g','var(--fat)']].map(([k,l,u,c]) => {
-          const e = tot.eaten[k], p = tot.planned[k];
+          const e = tot.eaten[k], p = tot.planned[k], g = num(G[k]) || 1;
+          const fmt = v => k === 'calories' ? fk(v) : r1(v);
+          const a = Math.min(100, e*100/g), b = Math.min(100 - a, p*100/g), left = G[k] - e - p;
           return `<div class="tnum"><span class="lbl"><i class="sw" style="background:${c}"></i>${l}</span>
-            <b>${k === 'calories' ? fk(e) : r1(e)}<small>${u}</small></b>
-            <span class="muted small">${p ? `+${k === 'calories' ? fk(p) : r1(p)} ${u} planned` : 'nothing else planned'}</span></div>`; }).join('')}
+            <b>${fmt(e)}<small>/ ${fmt(G[k])} ${u}</small></b>
+            <div class="gtrack" role="img" aria-label="${l}: ${fmt(e)} eaten and ${fmt(p)} planned of a ${fmt(G[k])} ${u} goal"><i style="width:${a}%;background:${c}"></i><i style="width:${b}%;background:${c};opacity:.35"></i></div>
+            <span class="muted small">${p ? `+${fmt(p)} planned · ` : ''}${left >= 0 ? `${fmt(left)} ${u} left` : `<span style="color:var(--warn);font-weight:600">${fmt(-left)} ${u} over</span>`}</span></div>`; }).join('')}
       </div>
       ${(() => { const P = (tot.eaten.protein + tot.planned.protein)*4, C = (tot.eaten.carbs + tot.planned.carbs)*4, F = (tot.eaten.fat + tot.planned.fat)*9, T = P + C + F;
         return T ? `<div class="mbar" role="img" aria-label="Today's calories: protein ${Math.round(P*100/T)}%, carbs ${Math.round(C*100/T)}%, fat ${Math.round(F*100/T)}%"><i style="width:${P*100/T}%;background:var(--protein)"></i><i style="width:${C*100/T}%;background:var(--carbs)"></i><i style="width:${F*100/T}%;background:var(--fat)"></i></div>
@@ -1109,7 +1327,7 @@ function viewPantry(){
   <div class="card">
     <h2>Add an item</h2>
     <div class="row end">
-      <label class="f">Name<input id="f-pNew-name" class="w-name" list="pnames" value="${esc(ui.pNew.name)}" data-bind="pNew.name" data-norender placeholder="e.g. Brown rice"></label>
+      <label class="f">Name<input id="f-pNew-name" class="w-name" data-food="pantry" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggest" value="${esc(ui.pNew.name)}" data-bind="pNew.name" data-norender placeholder="e.g. Brown rice"></label>
       <datalist id="pnames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
       <label class="f">Amount<input id="f-pNew-qty" class="w-num" type="number" step="any" min="0" value="${esc(ui.pNew.qty)}" data-bind="pNew.qty" data-norender></label>
       <label class="f">Unit<select id="f-pNew-unit" class="w-unit" data-bind="pNew.unit" data-norender>${opts(UNIT_LIST, ui.pNew.unit)}</select></label>
@@ -1255,7 +1473,7 @@ function viewRecipeEditor(){
     ${d.ingredients.map((i,ix) => `
       <div class="edblock">
         <div class="edrow">
-          <input id="f-rEdit-ingredients-${ix}-name" list="inames" value="${esc(i.name)}" data-bind="rEdit.ingredients.${ix}.name" data-norender placeholder="Ingredient, e.g. Olive oil" aria-label="Ingredient name">
+          <input id="f-rEdit-ingredients-${ix}-name" data-food="recipe:${ix}" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggest" value="${esc(i.name)}" data-bind="rEdit.ingredients.${ix}.name" data-norender placeholder="Ingredient, e.g. Olive oil" aria-label="Ingredient name">
           <input id="f-rEdit-ingredients-${ix}-qty" type="number" step="any" min="0" value="${esc(i.qty)}" data-bind="rEdit.ingredients.${ix}.qty" data-norender placeholder="Amount" aria-label="Amount">
           <select id="f-rEdit-ingredients-${ix}-unit" data-bind="rEdit.ingredients.${ix}.unit" data-norender aria-label="Unit">${opts(UNIT_LIST, i.unit)}</select>
           <button class="btn sm ghost danger" data-act="ingRemove" data-ix="${ix}" aria-label="Remove ingredient">Remove</button>
@@ -1490,7 +1708,7 @@ function viewGroceries(){
             ${confirmBtn('shopping:'+s.id)}
           </div>`).join('') : '<div class="empty">Your list is empty. Add suggestions from the left or type an item below.</div>'}
         <div class="row end" style="margin-top:12px">
-          <label class="f" style="flex:1 1 150px">Item<input id="f-listNew-name" list="gnames" value="${esc(ui.listNew.name)}" data-bind="listNew.name" data-norender></label>
+          <label class="f" style="flex:1 1 150px">Item<input id="f-listNew-name" data-food="list" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggest" value="${esc(ui.listNew.name)}" data-bind="listNew.name" data-norender></label>
           <label class="f">Amount<input id="f-listNew-qty" class="w-num" type="number" step="any" min="0" value="${esc(ui.listNew.qty)}" data-bind="listNew.qty" data-norender></label>
           <label class="f">Unit<select id="f-listNew-unit" class="w-unit" data-bind="listNew.unit" data-norender>${opts(UNIT_LIST, ui.listNew.unit)}</select></label>
           <button class="btn" data-act="listNew">Add to list</button>
@@ -1502,7 +1720,7 @@ function viewGroceries(){
         <p class="small muted" style="margin-bottom:10px">Bought something that wasn't on the list? Add it straight to your pantry. If an item with the same name exists, the amount is added to it.</p>
         <datalist id="gnames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
         <div class="row end">
-          <label class="f" style="flex:1 1 150px">Item<input id="f-buy-name" list="gnames" value="${esc(ui.buy.name)}" data-bind="buy.name" data-norender placeholder="e.g. Chicken breast"></label>
+          <label class="f" style="flex:1 1 150px">Item<input id="f-buy-name" data-food="buy" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggest" value="${esc(ui.buy.name)}" data-bind="buy.name" data-norender placeholder="e.g. Chicken breast"></label>
           <label class="f">Amount<input id="f-buy-qty" class="w-num" type="number" step="any" min="0" value="${esc(ui.buy.qty)}" data-bind="buy.qty" data-norender></label>
           <label class="f">Unit<select id="f-buy-unit" class="w-unit" data-bind="buy.unit" data-norender>${opts(UNIT_LIST, ui.buy.unit)}</select></label>
           <label class="f">Category<select id="f-buy-category" data-bind="buy.category" data-norender>${opts(CATS, ui.buy.category)}</select></label>
@@ -1530,6 +1748,9 @@ const ACT = {
   tab: el => { ui.tab = el.dataset.id; lsSet('pk-tab', ui.tab); ui.confirm = null; window.scrollTo(0,0); },
   go: el => ACT.tab(el),
   goWeek: el => { ui.week = weekStart(el.dataset.date); ui.tab = 'planner'; lsSet('pk-tab','planner'); window.scrollTo(0,0); },
+  goalsEdit: () => { ui.gDraft = Object.fromEntries(Object.entries(goals()).map(([k,v]) => [k, String(v)])); ui.goalsEdit = true; },
+  goalsCancel: () => { ui.goalsEdit = false; },
+  goalsSave: () => { put('settings', 'goals', Object.fromEntries(Object.keys(DEFAULT_GOALS).map(k => [k, num(ui.gDraft[k]) || DEFAULT_GOALS[k]]))); ui.goalsEdit = false; toast('Goals saved.'); },
   del: el => {
     const k = el.dataset.key;
     if(ui.confirm !== k){ ui.confirm = k; clearTimeout(confirmT); confirmT = setTimeout(() => { ui.confirm = null; render(); }, 4000); return; }
@@ -1544,7 +1765,7 @@ const ACT = {
     if(!f.name.trim()){ toast('Give the item a name first.'); return; }
     const m = list('pantry').find(p => key(p.name) === key(f.name) && conv(1, f.unit, p.unit) !== null);
     if(m){ patch('pantry', m.id, {qty: Math.round((num(m.qty) + conv(num(f.qty), f.unit, m.unit))*1000)/1000}); toast(`Added to your existing ${m.name}.`); }
-    else { put('pantry', uid('p'), {name:f.name.trim(), qty:num(f.qty), unit:f.unit, category:f.category, lowAt: f.lowAt === '' ? null : num(f.lowAt)}); toast(`${f.name.trim()} added.`); }
+    else { put('pantry', uid('p'), {name:f.name.trim(), qty:num(f.qty), unit:f.unit, category:f.category, lowAt: f.lowAt === '' ? null : num(f.lowAt), ...(f.foodId ? {foodId:f.foodId} : {})}); toast(`${f.name.trim()} added.`); }
     ui.pNew = {name:'', qty:'', unit:f.unit, category:f.category, lowAt:''};
   },
   pstep: el => { const p = S.pantry[el.dataset.id]; const st = STEP[p.unit] || 1; patch('pantry', el.dataset.id, {qty: Math.max(0, Math.round((num(p.qty) + st*num(el.dataset.dir))*1000)/1000)}); },
@@ -1602,7 +1823,7 @@ const ACT = {
     const r = S.recipes[el.dataset.id];
     ui.labelFor = null;
     ui.rEdit = {id: el.dataset.id, name: r.name||'', servings: String(r.servings||''), time: r.time||'', auto: r.autoNutrition === true,
-      ingredients: (r.ingredients||[]).map(i => ({name:i.name, qty:String(i.qty), unit:i.unit})),
+      ingredients: (r.ingredients||[]).map(i => ({name:i.name, qty:String(i.qty), unit:i.unit, foodId:i.foodId||null})),
       steps: (r.steps||[]).join('\n'), nutrition: Object.fromEntries(NUTR.map(([k]) => [k, r.nutrition && r.nutrition[k] != null ? String(r.nutrition[k]) : '']))};
     if(!ui.rEdit.ingredients.length) ui.rEdit.ingredients.push({name:'',qty:'',unit:'g'});
     window.scrollTo(0,0);
@@ -1613,7 +1834,7 @@ const ACT = {
   recipeSave: () => {
     const d = ui.rEdit;
     if(!d.name.trim()){ toast('Give the recipe a name.'); return; }
-    const ingredients = d.ingredients.filter(i => i.name.trim()).map(i => ({name:i.name.trim(), qty:num(i.qty), unit:i.unit}));
+    const ingredients = d.ingredients.filter(i => i.name.trim()).map(i => ({name:i.name.trim(), qty:num(i.qty), unit:i.unit, ...(i.foodId ? {foodId:i.foodId} : {})}));
     if(!ingredients.length){ toast('Add at least one ingredient.'); return; }
     const id = d.id || uid('r');
     const servings = Math.max(1, num(d.servings) || 1);
