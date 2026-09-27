@@ -951,7 +951,7 @@ function fdcToFood(f){
   }
   // "Chicken Breast for Fajitas, Chicken Breast" -> drop a trailing part that repeats earlier words.
   const parts = desc.split(/,\s*/);
-  if(parts.length > 1 && parts[0].toLowerCase().includes(parts[parts.length - 1].toLowerCase())) desc = parts.slice(0, -1).join(', ');
+  if(parts.length > 1 && parts.slice(0, -1).some(p => p.toLowerCase().includes(parts[parts.length - 1].toLowerCase()))) desc = parts.slice(0, -1).join(', ');
   const unit = String(f.servingSizeUnit || '').toLowerCase();
   const servingG = (unit === 'g' || unit === 'grm' || unit === 'ml' || unit === 'mlt') && num(f.servingSize) > 0 ? r1(f.servingSize) : null;
   return {
