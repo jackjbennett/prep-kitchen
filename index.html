@@ -679,7 +679,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.09.27.1608';
+const APP_VERSION = '2026.09.27.1610';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }
@@ -1880,7 +1880,7 @@ function viewPlanner(){
   const active = activePreps();
   return `
   <div class="pagehead">
-    <div><h1>Planner</h1><p class="sub">Prep a batch, then spread the portions across the week. Drag a meal to another day, or tap Edit to move it.</p></div>
+    <div><h1>Planner</h1><p class="sub">Prep a batch, then spread the portions across the week. ${isPhone() ? 'Tap Edit on a meal to move it to another day.' : 'Drag a meal to another day, or tap Edit to move it.'}</p></div>
   </div>
   <div class="card">
     <h2>Prep a batch</h2>
