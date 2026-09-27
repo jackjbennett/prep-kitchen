@@ -1,8 +1,8 @@
 // Prep Kitchen service worker.
 // Network first for the app's own files, so every update shows up on the next open.
 // The cache is only a fallback for when the device is offline.
-const CACHE = 'prep-kitchen-v1';
-const CORE = ['./', './index.html', './config.js', './manifest.webmanifest', './icons/icon-192.png', './icons/favicon.png'];
+const CACHE = 'prep-kitchen-v2';
+const CORE = ['./', './index.html', './config.js', './scenes.js', './manifest.webmanifest', './icons/icon-192.png', './icons/favicon.png'];
 
 self.addEventListener('install', event => {
   self.skipWaiting();

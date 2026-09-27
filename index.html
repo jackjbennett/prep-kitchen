@@ -20,11 +20,6 @@
 // Color palettes and themes. Each has a light and a dark set of the page's color tokens;
 // themes also add a faint background pattern. Built here so they apply before the page paints.
 window.PK_PALETTES = (() => {
-  const svg = s => `url("data:image/svg+xml,${encodeURIComponent(s)}")`;
-  const hearts = c => svg(`<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><g fill='${c}' fill-opacity='.075'><path d='M22 30c-4-6-14-3-11 5 2 5 11 11 11 11s9-6 11-11c3-8-7-11-11-5z'/><path d='M66 70c-3-4-10-2-8 3 1 4 8 8 8 8s7-4 8-8c2-5-5-7-8-3z'/></g></svg>`);
-  const pines = c => svg(`<svg xmlns='http://www.w3.org/2000/svg' width='110' height='110'><g fill='${c}' fill-opacity='.07'><path d='M26 10l12 20h-6l10 16H10l10-16h-6z'/><rect x='24' y='46' width='4' height='7'/><path d='M80 58l9 15h-5l8 13H62l8-13h-5z'/><rect x='78' y='86' width='4' height='6'/></g></svg>`);
-  const stars = (c, a) => [[18,24,1],[70,12,1.4],[120,60,1],[160,20,1.2],[40,90,1.6],[95,110,1],[150,140,1.3],[20,160,1],[75,175,1.2],[180,95,1],[130,185,1.5]]
-    .map(([x, y, r]) => `radial-gradient(${r}px ${r}px at ${x}px ${y}px, rgba(${c},${a}), transparent)`).join(',');
   const P = {
     basil:  {name:'Basil', group:'palette',
       light:{bg:'#F2F4F0',surface:'#FFFFFF',surface2:'#E8ECE5',ink:'#17211C',ink2:'#56625B',line:'#D5DCD2',accent:'#2D6A4A',accentInk:'#FFFFFF',accentSoft:'#DBEBE0',butter:'#F3D05B',side:'#E6EBE3',today:'#F2F8F3'},
@@ -41,16 +36,19 @@ window.PK_PALETTES = (() => {
     sunset: {name:'Sunset', group:'palette',
       light:{bg:'#FBF3EE',surface:'#FFFFFF',surface2:'#F5E6DC',ink:'#2B1A12',ink2:'#735A4C',line:'#EDD8CA',accent:'#C2561C',accentInk:'#FFFFFF',accentSoft:'#F8E0D0',butter:'#F2C14E',side:'#F4E6DC',today:'#FDF1E9'},
       dark:{bg:'#17100C',surface:'#211712',surface2:'#2E2019',ink:'#F5E8DF',ink2:'#B89E8F',line:'#3A2A21',accent:'#F09A62',accentInk:'#241208',accentSoft:'#43291B',butter:'#EDC05A',side:'#0F0A07',today:'#2A1D15'}},
-    love:   {name:'Love', group:'theme', note:'Rose and blush, with little hearts',
-      light:{bg:'#FCF1F3',surface:'#FFFFFF',surface2:'#F7E1E6',ink:'#2E1419',ink2:'#7A525B',line:'#F0D2D9',accent:'#C8304F',accentInk:'#FFFFFF',accentSoft:'#FADCE3',butter:'#F7A8BA',side:'#F8E3E8',today:'#FFF0F3',art:hearts('#C8304F')},
-      dark:{bg:'#1A0D11',surface:'#241318',surface2:'#321A21',ink:'#F8E6EA',ink2:'#C096A0',line:'#43242C',accent:'#FF7E98',accentInk:'#2A0A12',accentSoft:'#4A1D29',butter:'#FFB3C4',side:'#12080B',today:'#2C151C',art:hearts('#FF7E98')}},
-    space:  {name:'Space', group:'theme', note:'Deep violet night sky with stars',
-      light:{bg:'#EEEDF8',surface:'#FFFFFF',surface2:'#E2E0F2',ink:'#16142B',ink2:'#5B5878',line:'#D4D1EA',accent:'#5B4BD6',accentInk:'#FFFFFF',accentSoft:'#E1DDFB',butter:'#F5C84C',side:'#E3E1F4',today:'#F1EFFD',art:stars('91,75,214', .35), artSize:'200px 200px'},
-      dark:{bg:'#07061A',surface:'#100E27',surface2:'#1A1836',ink:'#E8E6FA',ink2:'#9A96C2',line:'#26234A',accent:'#9C8CFF',accentInk:'#0D0A2B',accentSoft:'#2A2360',butter:'#FFD86B',side:'#04030F',today:'#17143A',art:stars('255,255,255', .75), artSize:'200px 200px'}},
-    forest: {name:'Forest', group:'theme', note:'Moss, bark and pine trees',
-      light:{bg:'#EFF2EA',surface:'#FDFDF9',surface2:'#E2E8D8',ink:'#1B2415',ink2:'#58654C',line:'#D2DBC5',accent:'#3F6B2A',accentInk:'#FFFFFF',accentSoft:'#DDEACF',butter:'#C9893B',side:'#E0E7D5',today:'#F1F6EA',art:pines('#3F6B2A')},
-      dark:{bg:'#0C120A',surface:'#141C11',surface2:'#1E2819',ink:'#E4EBDB',ink2:'#9AA88C',line:'#2A3623',accent:'#8CC46A',accentInk:'#0C1608',accentSoft:'#253A1B',butter:'#D9A15A',side:'#080C06',today:'#182412',art:pines('#8CC46A')}}
+    love:   {name:'Love', group:'theme', note:'Floating hearts, tumbling petals and a beating heart',
+      light:{bg:'#FCF1F3',surface:'#FFFFFF',surface2:'#F7E1E6',ink:'#2E1419',ink2:'#7A525B',line:'#F0D2D9',accent:'#C8304F',accentInk:'#FFFFFF',accentSoft:'#FADCE3',butter:'#F7A8BA',side:'#F8E3E8',today:'#FFF0F3'},
+      dark:{bg:'#1A0D11',surface:'#241318',surface2:'#321A21',ink:'#F8E6EA',ink2:'#C096A0',line:'#43242C',accent:'#FF7E98',accentInk:'#2A0A12',accentSoft:'#4A1D29',butter:'#FFB3C4',side:'#12080B',today:'#2C151C'}},
+    space:  {name:'Space', group:'theme', note:'Starfield, nebulas, a ringed planet and shooting stars',
+      light:{bg:'#EEEDF8',surface:'#FFFFFF',surface2:'#E2E0F2',ink:'#16142B',ink2:'#5B5878',line:'#D4D1EA',accent:'#5B4BD6',accentInk:'#FFFFFF',accentSoft:'#E1DDFB',butter:'#F5C84C',side:'#E3E1F4',today:'#F1EFFD'},
+      dark:{bg:'#07061A',surface:'#100E27',surface2:'#1A1836',ink:'#E8E6FA',ink2:'#9A96C2',line:'#26234A',accent:'#9C8CFF',accentInk:'#0D0A2B',accentSoft:'#2A2360',butter:'#FFD86B',side:'#04030F',today:'#17143A'}},
+    forest: {name:'Forest', group:'theme', note:'Drifting pine ridges, mist, leaves and fireflies',
+      light:{bg:'#EFF2EA',surface:'#FDFDF9',surface2:'#E2E8D8',ink:'#1B2415',ink2:'#58654C',line:'#D2DBC5',accent:'#3F6B2A',accentInk:'#FFFFFF',accentSoft:'#DDEACF',butter:'#C9893B',side:'#E0E7D5',today:'#F1F6EA'},
+      dark:{bg:'#0C120A',surface:'#141C11',surface2:'#1E2819',ink:'#E4EBDB',ink2:'#9AA88C',line:'#2A3623',accent:'#8CC46A',accentInk:'#0C1608',accentSoft:'#253A1B',butter:'#D9A15A',side:'#080C06',today:'#182412'}}
   };
+  P.deepsea = {name:'Deep Sea', group:'theme', note:'Light rays, swaying kelp, fish, bubbles and jellyfish',
+    light:{bg:'#E8F5F8',surface:'#FFFFFF',surface2:'#DCEEF3',ink:'#0E2A33',ink2:'#4A6B75',line:'#C7E1E8',accent:'#0B7A8F',accentInk:'#FFFFFF',accentSoft:'#D3EEF3',butter:'#F6C85F',side:'#DDEFF4',today:'#EAF7FA'},
+    dark:{bg:'#041620',surface:'#0A2230',surface2:'#10303F',ink:'#DDF1F7',ink2:'#86AEBB',line:'#1B3E4D',accent:'#3FD0E0',accentInk:'#03161C',accentSoft:'#0E3A47',butter:'#F5CB63',side:'#031018',today:'#0C2B38'}};
   const vars = t => `--bg:${t.bg};--surface:${t.surface};--surface-2:${t.surface2};--ink:${t.ink};--ink-2:${t.ink2};--line:${t.line};--accent:${t.accent};--accent-ink:${t.accentInk};--accent-soft:${t.accentSoft};--butter:${t.butter};--side:${t.side};--today:${t.today};--bg-art:${t.art || 'none'};--bg-art-size:${t.artSize || 'auto'};`;
   let css = '';
   for(const [id, p] of Object.entries(P)){
@@ -366,12 +364,17 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .pal{display:flex;flex-direction:column;gap:6px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px;cursor:pointer;color:var(--ink);font:inherit}
 .pal:hover{border-color:var(--ink-2)}
 .pal.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.pal-prev{display:grid;grid-template-columns:1fr 1fr;height:54px;border-radius:7px;overflow:hidden;border:1px solid var(--line)}
-.pal-half{position:relative;display:block}
-.pal-half i{position:absolute;left:0;top:0;bottom:0;width:22%}
-.pal-half em{position:absolute;left:30%;right:10%;top:22%;bottom:22%;border:1px solid;border-radius:4px}
-.pal-half u{position:absolute;left:14%;top:28%;width:52%;height:22%;border-radius:3px}
-.pal-half s{position:absolute;right:10%;bottom:16%;width:9px;height:9px;border-radius:50%}
+.pal-prev{display:grid;grid-template-columns:1fr 1fr;height:74px;border-radius:7px;overflow:hidden;border:1px solid var(--line);gap:1px;background:var(--line)}
+.pal-thumb{width:100%;height:100%;display:block}
+#scene{position:fixed;inset:0;z-index:0;pointer-events:none;display:block}
+.app,.authwrap{position:relative;z-index:1}
+:root[data-scene] .side{background:color-mix(in srgb, var(--side) 72%, transparent);-webkit-backdrop-filter:blur(18px) saturate(1.2);backdrop-filter:blur(18px) saturate(1.2)}
+:root[data-scene] .card,:root[data-scene] .rcard,:root[data-scene] .authcard,:root[data-scene] .pal,:root[data-scene] .sday{background:color-mix(in srgb, var(--surface) 91%, transparent)}
+:root[data-scene] .pagehead{background:color-mix(in srgb, var(--bg) 70%, transparent);border-radius:16px;padding:16px 18px}
+:root[data-scene] .empty{background:color-mix(in srgb, var(--surface) 75%, transparent)}
+:root[data-scene] .calwrap{box-shadow:0 8px 30px rgba(0,0,0,.12)}
+.brand .logo{width:32px;height:32px;flex:none;filter:drop-shadow(0 3px 8px rgba(0,0,0,.18))}
+.brand b{font-weight:700;color:var(--accent)}
 .pal-name{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px}
 .pal-note{font-size:11.5px;color:var(--ink-2);line-height:1.3}
 .updatebar{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));z-index:60;width:min(640px,calc(100% - 32px));background:var(--surface);border:1px solid var(--accent);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -400,12 +403,12 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 </head>
 <body>
 
-<div id="updatebar" class="updatebar" role="status" hidden></div>
+<canvas id="scene" aria-hidden="true"></canvas>
 <div id="auth" class="authwrap"></div>
 
 <div class="app" hidden>
   <aside class="side">
-    <div class="brand"><span class="mark" aria-hidden="true"></span>Prep Kitchen</div>
+    <div class="brand"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="var(--accent)"/><rect x="18.5" y="7.4" width="11" height="3.6" rx="1.8" fill="var(--accent-ink)"/><rect x="8" y="12.5" width="32" height="25" rx="6.5" fill="none" stroke="var(--accent-ink)" stroke-width="2.6"/><path d="M24 12.5v25M24 25h16" stroke="var(--accent-ink)" stroke-width="2.2"/><path d="M11.6 33c.1-8.2 5.1-11.9 9.9-11.6-.1 8-4.6 11.8-9.9 11.6z" fill="var(--accent-soft)"/><path d="M12.9 31.8l6.6-7.3" stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round"/><g fill="var(--accent-ink)"><ellipse cx="28.3" cy="19.4" rx="1.35" ry="2.35" transform="rotate(-25 28.3 19.4)"/><ellipse cx="32" cy="18" rx="1.35" ry="2.35"/><ellipse cx="35.7" cy="19.4" rx="1.35" ry="2.35" transform="rotate(25 35.7 19.4)"/></g><circle cx="32" cy="31.3" r="4.5" fill="var(--accent-ink)"/><circle cx="32.7" cy="30.9" r="2.2" fill="var(--butter)"/></svg><span>Prep <b>Kitchen</b></span></div>
     <nav class="nav" id="tabs" aria-label="Sections"></nav>
     <div class="sidefoot">
       <button class="btn sm" id="installbtn" data-act="install" hidden>Install app</button>
@@ -641,15 +644,18 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.09.27.1513';
-const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4};
-function prefs(){ return {...DEFAULT_PREFS, ...(S.settings.prefs || {})}; }
+const APP_VERSION = '2026.09.27.1523';
+const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4};
+// Appearance saved on this device, used before sign-in and until the account's settings load.
+const LOCAL_APPEAR = (() => { try{ const a = JSON.parse(localStorage.getItem('pk-appearance') || '{}'); return a && typeof a === 'object' ? a : {}; }catch(e){ return {}; } })();
+function prefs(){ return {...DEFAULT_PREFS, ...LOCAL_APPEAR, ...(S.settings.prefs || {})}; }
 function applyAppearance(){
   const p = prefs(), root = document.documentElement;
   if(p.theme === 'light' || p.theme === 'dark') root.dataset.theme = p.theme; else delete root.dataset.theme;
   root.dataset.text = p.textSize;
   root.dataset.palette = window.PK_PALETTES[p.palette] ? p.palette : 'basil';
-  lsSet('pk-appearance', JSON.stringify({theme:p.theme, textSize:p.textSize, palette:root.dataset.palette}));
+  lsSet('pk-appearance', JSON.stringify({theme:p.theme, textSize:p.textSize, palette:root.dataset.palette, motion:p.motion}));
+  startScene();
 }
 const T0 = today();
 const ui = {
@@ -666,6 +672,78 @@ const ui = {
   confirm:null
 };
 const list = col => Object.entries(S[col]).map(([id,d]) => ({id, ...d}));
+
+/* ---------- animated background ---------- */
+const THEMED = ['love', 'space', 'forest', 'deepsea'];
+const mqDark = matchMedia('(prefers-color-scheme: dark)'), mqReduce = matchMedia('(prefers-reduced-motion: reduce)');
+const scene = {cv:null, ctx:null, st:null, kind:'', key:'', raf:0, last:0, t:Math.random() * 60, w:0, h:0};
+function effDark(){ const th = prefs().theme; return th === 'dark' || (th !== 'light' && mqDark.matches); }
+function motionOn(){ return prefs().motion !== 'off' && !mqReduce.matches; }
+function paletteTokens(id, dark){ const P = window.PK_PALETTES[id] || window.PK_PALETTES.basil; return dark ? P.dark : P.light; }
+function startScene(force){
+  if(!window.PKScenes) return;
+  const cv = scene.cv || (scene.cv = document.getElementById('scene'));
+  if(!cv) return;
+  const pal = window.PK_PALETTES[prefs().palette] ? prefs().palette : 'basil';
+  const kind = THEMED.includes(pal) ? pal : 'mesh', dark = effDark();
+  const w = window.innerWidth, h = window.innerHeight;
+  // Phone address bars change the height while scrolling; only rebuild for real size changes.
+  const key = [pal, dark, w, Math.round(h / 120)].join('|');
+  if(!force && key === scene.key){ resumeScene(); return; }
+  scene.key = key;
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  scene.ctx = cv.getContext('2d'); scene.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  scene.kind = kind; scene.w = w; scene.h = h;
+  scene.st = PKScenes[kind].init(w, h, dark, paletteTokens(pal, dark));
+  document.documentElement.dataset.scene = kind;
+  PKScenes[kind].draw(scene.ctx, scene.st, scene.t, 0, w, h);
+  resumeScene();
+}
+function sceneTick(now){
+  scene.raf = 0;
+  if(!motionOn() || document.hidden) return;
+  const dt = scene.last ? Math.min(0.05, (now - scene.last) / 1000) : 0;
+  scene.last = now; scene.t += dt;
+  PKScenes[scene.kind].draw(scene.ctx, scene.st, scene.t, dt, scene.w, scene.h);
+  scene.raf = requestAnimationFrame(sceneTick);
+}
+function resumeScene(){ if(!scene.raf && scene.st && motionOn() && !document.hidden){ scene.last = 0; scene.raf = requestAnimationFrame(sceneTick); } }
+let sceneResizeT;
+window.addEventListener('resize', () => { clearTimeout(sceneResizeT); sceneResizeT = setTimeout(() => startScene(), 200); });
+mqDark.addEventListener('change', () => applyAppearance());
+mqReduce.addEventListener('change', () => startScene(true));
+document.addEventListener('visibilitychange', () => { if(!document.hidden) resumeScene(); });
+// Still previews for the Settings cards, drawn once and reused.
+const thumbCache = new Map();
+function drawThumbs(){
+  if(!window.PKScenes) return;
+  document.querySelectorAll('canvas[data-thumb]').forEach(cv => {
+    const id = cv.dataset.thumb, dark = cv.dataset.dark === '1';
+    const w = Math.max(40, cv.clientWidth), h = Math.max(30, cv.clientHeight), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const ck = [id, dark, w, h, dpr].join('|');
+    let src = thumbCache.get(ck);
+    if(!src){
+      src = document.createElement('canvas'); src.width = Math.round(w * dpr); src.height = Math.round(h * dpr);
+      const c = src.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const kind = THEMED.includes(id) ? id : 'mesh', T = paletteTokens(id, dark);
+      // Draw a scaled-down full screen so the preview matches the real background.
+      const big = 3.2, st = PKScenes[kind].init(w * big, h * big, dark, T);
+      c.save(); c.scale(1 / big, 1 / big); PKScenes[kind].draw(c, st, 14, 0, w * big, h * big); c.restore();
+      // A tiny sidebar and card in the palette's colors.
+      c.globalAlpha = 0.82; c.fillStyle = T.side; c.fillRect(0, 0, w * 0.18, h); c.globalAlpha = 1;
+      c.fillStyle = T.surface; c.strokeStyle = T.line; c.lineWidth = 1;
+      const cx = w * 0.3, cy = h * 0.28, cw = w * 0.5, ch = h * 0.36;
+      c.beginPath(); c.roundRect ? c.roundRect(cx, cy, cw, ch, 4) : c.rect(cx, cy, cw, ch); c.fill(); c.stroke();
+      c.fillStyle = T.accent; c.fillRect(cx + cw * 0.12, cy + ch * 0.3, cw * 0.45, ch * 0.2);
+      c.fillStyle = T.butter; c.beginPath(); c.arc(cx + cw * 0.82, cy + ch * 0.7, Math.max(2.5, ch * 0.12), 0, Math.PI * 2); c.fill();
+      thumbCache.set(ck, src);
+    }
+    cv.width = src.width; cv.height = src.height;
+    cv.getContext('2d').drawImage(src, 0, 0);
+  });
+}
 
 /* ---------- persistence (Supabase: one row per saved thing, private to its owner) ---------- */
 const writes = {};
@@ -758,14 +836,14 @@ function onSignedOut(){
 function renderAuth(){
   const a = ui.auth, el = document.getElementById('auth');
   if(!CFG.supabaseUrl || !CFG.supabaseKey || !sb){
-    el.innerHTML = `<div class="authcard"><div class="brand"><span class="mark" aria-hidden="true"></span>Prep Kitchen</div>
+    el.innerHTML = `<div class="authcard"><div class="brand"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="var(--accent)"/><rect x="18.5" y="7.4" width="11" height="3.6" rx="1.8" fill="var(--accent-ink)"/><rect x="8" y="12.5" width="32" height="25" rx="6.5" fill="none" stroke="var(--accent-ink)" stroke-width="2.6"/><path d="M24 12.5v25M24 25h16" stroke="var(--accent-ink)" stroke-width="2.2"/><path d="M11.6 33c.1-8.2 5.1-11.9 9.9-11.6-.1 8-4.6 11.8-9.9 11.6z" fill="var(--accent-soft)"/><path d="M12.9 31.8l6.6-7.3" stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round"/><g fill="var(--accent-ink)"><ellipse cx="28.3" cy="19.4" rx="1.35" ry="2.35" transform="rotate(-25 28.3 19.4)"/><ellipse cx="32" cy="18" rx="1.35" ry="2.35"/><ellipse cx="35.7" cy="19.4" rx="1.35" ry="2.35" transform="rotate(25 35.7 19.4)"/></g><circle cx="32" cy="31.3" r="4.5" fill="var(--accent-ink)"/><circle cx="32.7" cy="30.9" r="2.2" fill="var(--butter)"/></svg><span>Prep <b>Kitchen</b></span></div>
       <h1>Almost ready</h1><p class="sub">This copy of Prep Kitchen isn't connected to its database yet. Add the Supabase project URL and publishable key to config.js.</p></div>`;
     return;
   }
   const titles = {signin:['Welcome back','Sign in to your kitchen.'], signup:['Create your kitchen','Plan meal preps, track your pantry and build grocery lists. Free.'], forgot:['Reset your password','Enter your email and we’ll send you a link to set a new password.'], reset:['Set a new password','Choose a new password for your account.']};
   const [h, s] = titles[a.mode];
   el.innerHTML = `<div class="authcard">
-    <div class="brand"><span class="mark" aria-hidden="true"></span>Prep Kitchen</div>
+    <div class="brand"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="var(--accent)"/><rect x="18.5" y="7.4" width="11" height="3.6" rx="1.8" fill="var(--accent-ink)"/><rect x="8" y="12.5" width="32" height="25" rx="6.5" fill="none" stroke="var(--accent-ink)" stroke-width="2.6"/><path d="M24 12.5v25M24 25h16" stroke="var(--accent-ink)" stroke-width="2.2"/><path d="M11.6 33c.1-8.2 5.1-11.9 9.9-11.6-.1 8-4.6 11.8-9.9 11.6z" fill="var(--accent-soft)"/><path d="M12.9 31.8l6.6-7.3" stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round"/><g fill="var(--accent-ink)"><ellipse cx="28.3" cy="19.4" rx="1.35" ry="2.35" transform="rotate(-25 28.3 19.4)"/><ellipse cx="32" cy="18" rx="1.35" ry="2.35"/><ellipse cx="35.7" cy="19.4" rx="1.35" ry="2.35" transform="rotate(25 35.7 19.4)"/></g><circle cx="32" cy="31.3" r="4.5" fill="var(--accent-ink)"/><circle cx="32.7" cy="30.9" r="2.2" fill="var(--butter)"/></svg><span>Prep <b>Kitchen</b></span></div>
     <div><h1>${h}</h1><p class="sub">${s}</p></div>
     <form id="authform" class="stack" novalidate>
       ${a.mode !== 'reset' ? `<label class="f">Email<input id="f-auth-email" type="email" autocomplete="email" value="${esc(a.email)}" data-bind="auth.email" data-norender required></label>` : ''}
@@ -820,6 +898,7 @@ async function submitAuth(){
 }
 
 async function init(){
+  applyAppearance();
   if(CFG.supabaseUrl && CFG.supabaseKey && window.supabase){
     sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
   }
@@ -1300,6 +1379,7 @@ function render(){
     if(n){ n.focus({preventScroll:true}); try{ if(s1 != null) n.setSelectionRange(s1, s2); }catch(e){} }
   }
   if(ui.tab === 'recipes' && ui.rEdit) refreshEditorCalc();
+  if(ui.tab === 'settings') drawThumbs();
 }
 function confirmBtn(k, label='Remove', cls='btn sm ghost danger'){
   return ui.confirm === k
@@ -1341,14 +1421,12 @@ function viewSettings(){
             <div class="palgrid">${Object.entries(window.PK_PALETTES).filter(([, x]) => x.group === grp).map(([id, x]) => {
               const on = (prefs().palette || 'basil') === id, L = x.light, D = x.dark;
               return `<button class="pal${on ? ' on' : ''}" data-act="pref" data-k="palette" data-v="${id}" aria-pressed="${on}" title="${esc(x.note || x.name)}">
-                <span class="pal-prev">
-                  <span class="pal-half" style="background-color:${L.bg};background-image:${esc(L.art || 'none')};background-size:${L.artSize || 'auto'}"><i style="background:${L.side}"></i><em style="background:${L.surface};border-color:${L.line}"><u style="background:${L.accent}"></u><s style="background:${L.butter}"></s></em></span>
-                  <span class="pal-half" style="background-color:${D.bg};background-image:${esc(D.art || 'none')};background-size:${D.artSize || 'auto'}"><i style="background:${D.side}"></i><em style="background:${D.surface};border-color:${D.line}"><u style="background:${D.accent}"></u><s style="background:${D.butter}"></s></em></span>
-                </span>
+                <span class="pal-prev"><canvas class="pal-thumb" data-thumb="${id}" data-dark="0"></canvas><canvas class="pal-thumb" data-thumb="${id}" data-dark="1"></canvas></span>
                 <span class="pal-name">${esc(x.name)}${on ? ' <span class="pill acc">On</span>' : ''}</span>
                 ${x.note ? `<span class="pal-note">${esc(x.note)}</span>` : ''}
               </button>`; }).join('')}</div>`).join('')}
         </div>
+        <div class="setrow"><div><b>Background animation</b><p class="small muted">Moving scenes behind the app. Turn off to save battery. It's also off when your device is set to reduce motion.</p></div>${seg('motion', [['on','On'],['off','Off']])}</div>
         <div class="setrow"><div><b>Text size</b><p class="small muted">Makes everything a little bigger.</p></div>${seg('textSize', [['standard','Standard'],['large','Large'],['larger','Larger']])}</div>
       </div>
       <div class="card stack">
@@ -2018,7 +2096,7 @@ const ACT = {
   pref: el => {
     const k = el.dataset.k, v = el.dataset.v;
     put('settings', 'prefs', {...prefs(), [k]: v});
-    if(k === 'theme' || k === 'textSize' || k === 'palette') applyAppearance();
+    if(k === 'theme' || k === 'textSize' || k === 'palette' || k === 'motion') applyAppearance();
     if(k === 'weekStart') ui.week = weekStart(today());
   },
   checkUpdate: () => checkForUpdate(true),
