@@ -949,13 +949,16 @@ function fdcToFood(f){
     brand = titleCase(f.brandName || f.brandOwner || '');
     for(const b of [f.brandName, f.brandOwner]) if(b && desc.toUpperCase().startsWith(String(b).toUpperCase())){ desc = desc.slice(String(b).length).replace(/^[\s,:;-]+/, ''); break; }
   }
+  // "Chicken Breast for Fajitas, Chicken Breast" -> drop a trailing part that repeats earlier words.
+  const parts = desc.split(/,\s*/);
+  if(parts.length > 1 && parts[0].toLowerCase().includes(parts[parts.length - 1].toLowerCase())) desc = parts.slice(0, -1).join(', ');
   const unit = String(f.servingSizeUnit || '').toLowerCase();
   const servingG = (unit === 'g' || unit === 'grm' || unit === 'ml' || unit === 'mlt') && num(f.servingSize) > 0 ? r1(f.servingSize) : null;
   return {
     id: 'fdc-' + f.fdcId, fdcId: f.fdcId, upc: f.gtinUpc || null,
     name: branded ? `${brand} ${titleCase(desc)}`.trim() : sentenceCase(desc),
     brand, source: branded ? 'brand' : 'usda', per100,
-    servingG, servingText: branded ? String(f.householdServingFullText || '').toLowerCase() : '',
+    servingG, servingText: branded ? String(f.householdServingFullText || '').toLowerCase().replace(/\bonz\b/g, 'oz').replace(/\bgrm\b/g, 'g').trim() : '',
     gPerMl: densityFrom(f.householdServingFullText, servingG) || 1,
     gPerPc: servingG, aliases: [], addedOn: today()
   };
@@ -979,14 +982,15 @@ function localMatches(q){
   if(!words.length) return {mine:[], common:[]};
   const hit = name => { const w = phrase(name, true).split(' '); return words.every(q => w.some(x => x.startsWith(q))); };
   const mine = list('foods').filter(f => hit(f.name)).slice(0, 6).map(f => ({...f, id: f.id}));
-  const common = builtinFoods().filter(f => hit(f.name) || f.aliases.some(a => hit(a))).slice(0, 6).map(f => ({...f, id: 'builtin:' + f.name}));
+  const common = builtinFoods().filter(f => hit(f.name) || f.aliases.some(a => hit(a))).slice(0, 6).map(f => ({...f, id: 'builtin:' + f.name, name: sentenceCase(f.name)}));
   return {mine, common};
 }
 function foodLine(f){
   const p = f.per100 || {};
   if(f.source === 'brand' && f.servingG){
     const m = f.servingG / 100;
-    return `${fk(p.calories*m)} kcal · ${r1(p.protein*m)} g protein per ${f.servingText ? esc(f.servingText) + ' (' + fq(f.servingG) + ' g)' : fq(f.servingG) + ' g'}`;
+    const st = f.servingText && !/^[\d.]+\s*g$/.test(f.servingText) ? esc(f.servingText) + ' (' + fq(f.servingG) + ' g)' : fq(f.servingG) + ' g';
+    return `${fk(p.calories*m)} kcal · ${r1(p.protein*m)} g protein per ${st}`;
   }
   return `${fk(p.calories)} kcal · ${r1(p.protein)} g protein per 100 g`;
 }
