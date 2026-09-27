@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
+<script src="scenes.js"></script>
 <script>
 // Color palettes and themes. Each has a light and a dark set of the page's color tokens;
 // themes also add a faint background pattern. Built here so they apply before the page paints.
@@ -644,7 +645,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.09.27.1523';
+const APP_VERSION = '2026.09.27.1524';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4};
 // Appearance saved on this device, used before sign-in and until the account's settings load.
 const LOCAL_APPEAR = (() => { try{ const a = JSON.parse(localStorage.getItem('pk-appearance') || '{}'); return a && typeof a === 'object' ? a : {}; }catch(e){ return {}; } })();
