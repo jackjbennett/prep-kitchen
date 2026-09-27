@@ -117,11 +117,27 @@ body{background:var(--bg);background-image:var(--bg-art);background-size:var(--b
 .content{padding-inline:32px;padding-block:28px 64px;min-width:0}
 @media (max-width:860px){
   .app{grid-template-columns:1fr}
-  .side{top:env(safe-area-inset-top,0px);height:auto;flex-direction:row;align-items:center;gap:14px;padding:10px 16px;z-index:10;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+  .side{top:env(safe-area-inset-top,0px);height:auto;flex-direction:row;align-items:center;justify-content:space-between;gap:14px;padding:10px 16px;z-index:10;border-right:0;border-bottom:1px solid var(--line);overflow:visible}
   .side .brand{padding-inline:0;font-size:18px}
-  .nav{flex-direction:row}
-  .navsep,.sidefoot{display:none}
-  .content{padding-inline:16px;padding-block:18px 48px}
+  .side .nav,.navsep,.sidefoot{display:none}
+  .content{padding-inline:16px;padding-block:18px calc(96px + env(safe-area-inset-bottom,0px))}
+  .tabbar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb, var(--side) 88%, transparent);-webkit-backdrop-filter:blur(20px) saturate(1.2);backdrop-filter:blur(20px) saturate(1.2);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
+  .tabbtn{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;color:var(--ink-2);font:600 10.5px Figtree,system-ui,sans-serif;padding:5px 2px;position:relative;cursor:pointer;min-width:0;-webkit-tap-highlight-color:transparent}
+  .tabbtn span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tabbtn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .tabbtn.on{color:var(--accent)}
+  .tabbtn.on svg{stroke-width:2.2}
+  .tabbtn .badge{position:absolute;top:1px;left:calc(50% + 5px)}
+  .sheet-back:not([hidden]){display:block;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:40}
+  .sheet:not([hidden]){display:block;position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--surface);border-radius:22px 22px 0 0;padding:8px 16px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+  .sheet-grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 14px}
+  .sheet-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .sheet-item{display:flex;align-items:center;gap:12px;padding:16px 14px;border-radius:14px;background:var(--bg);border:1px solid var(--line);font:600 15px Figtree,system-ui,sans-serif;color:var(--ink);cursor:pointer;text-align:left}
+  .sheet-item.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+  .sheet-item svg{width:24px;height:24px;flex:none;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .sheet-item .cnt,.sheet-item .badge{margin-left:auto}
+  #updatebar{top:auto;bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  #toast{bottom:calc(90px + env(safe-area-inset-bottom,0px))}
 }
 /* Today */
 .dash{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
@@ -355,6 +371,19 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .acctbtns{display:flex;gap:6px;flex-wrap:wrap}
 .acctmail{font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #installbtn{width:100%}
+@media (min-width:861px){.tabbar,.sheet,.sheet-back{display:none!important}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font:600 13px Figtree,system-ui,sans-serif;cursor:pointer}
+.chip svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.agenda{display:flex;flex-direction:column;gap:10px}
+.aday{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.aday.today{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.aday.past{opacity:.8}
+.aday-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.aday-m{display:flex;flex-direction:column;gap:6px}
+.aday .meal{cursor:default}
+.aday .addbox select{width:100%}
 .seg{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px;flex-wrap:wrap}
 .seg button{border:0;background:transparent;color:var(--ink-2);font:600 13px Figtree,system-ui,sans-serif;padding:6px 12px;border-radius:7px;cursor:pointer}
 .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
@@ -421,6 +450,9 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     </div>
   </aside>
   <div class="content"><main id="main" class="wrap"></main></div>
+  <nav class="tabbar" id="tabbar" aria-label="Sections"></nav>
+  <div class="sheet-back" id="sheetback" data-act="moreClose" hidden></div>
+  <div class="sheet" id="moresheet" role="dialog" aria-label="More sections" hidden></div>
 </div>
 <div class="toast" id="toast" hidden></div>
 
@@ -616,6 +648,7 @@ const ICONS = {
   fridge:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M5 10h14M9 5.5v2M9 13v3.5"/>',
   groceries:'<path d="M3 4h2.2l2.3 11h10.8L21 7.5H6.3"/><circle cx="9" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/>',
   alerts:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.8 2H4.2z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  more:'<circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/>',
   settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
 };
 
@@ -646,8 +679,13 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.09.27.1552';
-const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4};
+const APP_VERSION = '2026.09.27.1608';
+const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
+const mqPhone = matchMedia('(max-width: 860px)');
+function isPhone(){ return mqPhone.matches; }
+function phoneTabs(){ const p = prefs().phoneTabs; const ok = Array.isArray(p) ? p.filter(id => TABS.some(t => t[0] === id)).slice(0, 4) : []; return ok.length ? TABS.map(t => t[0]).filter(id => ok.includes(id)) : DEFAULT_PREFS.phoneTabs; }
+mqPhone.addEventListener('change', () => { closeMore(); render(); });
+function closeMore(){ const s = document.getElementById('moresheet'), b = document.getElementById('sheetback'); if(s) s.hidden = true; if(b) b.hidden = true; }
 // Appearance saved on this device, used before sign-in and until the account's settings load.
 const LOCAL_APPEAR = (() => { try{ const a = JSON.parse(localStorage.getItem('pk-appearance') || '{}'); return a && typeof a === 'object' ? a : {}; }catch(e){ return {}; } })();
 function prefs(){ return {...DEFAULT_PREFS, ...LOCAL_APPEAR, ...(S.settings.prefs || {})}; }
@@ -1359,6 +1397,15 @@ function renderTabs(){
   };
   document.getElementById('tabs').innerHTML = TABS.map(([id,label]) =>
     `${id==='pantry' || id==='settings'?'<div class="navsep"></div>':''}<button class="navbtn${ui.tab===id?' on':''}" data-act="tab" data-id="${id}" ${ui.tab===id?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg>${label}${extra[id]||''}</button>`).join('');
+  // Phone: a fixed bottom tab bar with 4 chosen tabs plus More.
+  const main = phoneTabs(), rest = TABS.filter(([id]) => !main.includes(id));
+  const badge = id => id === 'alerts' && n ? `<span class="badge">${n}</span>` : '';
+  const moreOn = !main.includes(ui.tab), moreBadge = rest.some(([id]) => id === 'alerts') && n ? `<span class="badge">${n}</span>` : '';
+  document.getElementById('tabbar').innerHTML = main.map(id => { const [, label] = TABS.find(x => x[0] === id); return `<button class="tabbtn${ui.tab===id?' on':''}" data-act="tab" data-id="${id}" ${ui.tab===id?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg><span>${id === 'alerts' ? 'Alerts' : label}</span>${badge(id)}</button>`; }).join('')
+    + `<button class="tabbtn${moreOn?' on':''}" data-act="moreOpen" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS.more}</svg><span>${moreOn ? esc((TABS.find(x => x[0] === ui.tab) || [,'More'])[1]) : 'More'}</span>${moreBadge}</button>`;
+  document.getElementById('moresheet').innerHTML = `<div class="sheet-grab" aria-hidden="true"></div>
+    <div class="sheet-grid">${rest.map(([id, label]) => `<button class="sheet-item${ui.tab===id?' on':''}" data-act="tab" data-id="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg><span>${label}</span>${extra[id]||''}</button>`).join('')}</div>
+    <button class="btn big" data-act="moreClose" style="margin-top:12px">Close</button>`;
   document.getElementById('todaylabel').textContent = new Date().toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
   document.getElementById('acctmail').textContent = user ? user.email : '';
   document.getElementById('installbtn').hidden = !installEvent;
@@ -1429,6 +1476,8 @@ function viewSettings(){
               </button>`; }).join('')}</div>`).join('')}
         </div>
         <div class="setrow"><div><b>Background animation</b><p class="small muted">Moving scenes behind the app. Turn off to save battery. It's also off when your device is set to reduce motion.</p></div>${seg('motion', [['on','On'],['off','Off']])}</div>
+        <div class="setrow palrow"><div><b>Phone tab bar</b><p class="small muted">Pick up to 4 tabs for the bar at the bottom of the screen on phones. Everything else is under More.</p></div>
+          <div class="chips">${TABS.map(([id, label]) => { const on = phoneTabs().includes(id); return `<button class="chip${on ? ' on' : ''}" data-act="phoneTab" data-id="${id}" aria-pressed="${on}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg>${label}</button>`; }).join('')}</div></div>
         <div class="setrow"><div><b>Text size</b><p class="small muted">Makes everything a little bigger.</p></div>${seg('textSize', [['standard','Standard'],['large','Large'],['larger','Larger']])}</div>
       </div>
       <div class="card stack">
@@ -1862,6 +1911,20 @@ function viewPlanner(){
         <button class="btn sm" data-act="week" data-dir="7" aria-label="Next week">Next ›</button>
       </div>
     </div>
+    ${isPhone() ? `<div class="agenda">${days.map(d => {
+        const meals = plan.filter(e => e.date === d).sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
+        const dt = dayTotals(d), k = d + '|';
+        return `<div class="aday${d===t?' today':''}${d<t?' past':''}">
+          <div class="aday-h"><div><b>${d===t ? 'Today' : fmtD(d,{weekday:'long'})}</b> <span class="muted">${fmtD(d,{month:'short',day:'numeric'})}</span></div>
+            ${meals.length ? `<span class="dtot">${fk(dt.eaten.calories + dt.planned.calories)} kcal · ${fq(dt.eaten.protein + dt.planned.protein)} g P</span>` : ''}</div>
+          ${meals.length ? `<div class="aday-m">${meals.map(e => mealChip(e)).join('')}</div>` : ''}
+          ${ui.addTo === k ? `<div class="addbox">
+              ${active.length ? `<select id="f-add-prepId" data-bind="add.prepId" data-norender aria-label="Prepped meal">${opts([['','Choose a prepped meal…'], ...active.map(p => [p.id, `${prepName(p)} (${Math.max(0, portionsLeft(p) - scheduledFor(p.id))} free)`])], ui.add.prepId)}</select>
+              <select id="f-add-slot" data-bind="add.slot" data-norender aria-label="Meal">${opts(SLOTS, ui.add.slot)}</select>
+              <div class="row"><button class="btn sm primary" data-act="addMeal">Add</button><button class="btn sm ghost" data-act="addCancel">Cancel</button></div>`
+              : `<p class="small muted">Nothing prepped yet. Create a prep above first.</p><button class="btn sm ghost" data-act="addCancel">Close</button>`}
+            </div>` : `<button class="btn sm ghost" data-act="addOpen" data-cell="${k}">+ Add meal</button>`}
+        </div>`; }).join('')}</div>` : `
     <div class="calwrap"><div class="cal">
       <div class="ch rh"></div>
       ${days.map(d => `<div class="ch${d===t?' today':''}"><b>${d===t ? 'Today' : fmtD(d,{weekday:'long'})}</b><span>${fmtD(d,{month:'short',day:'numeric'})}</span></div>`).join('')}
@@ -1879,7 +1942,7 @@ function viewPlanner(){
       <div class="rh tot">Day total</div>
       ${days.map(d => { const dt = dayTotals(d); return `<div class="tot"><b>${fk(dt.eaten.calories + dt.planned.calories)} kcal</b>${fq(dt.eaten.protein + dt.planned.protein)} g protein</div>`; }).join('')}
     </div></div>
-    <p class="small muted" style="margin-top:10px">Drag a meal to any day and meal slot to move it.</p>
+    <p class="small muted" style="margin-top:10px">Drag a meal to any day and meal slot to move it.</p>`}
   </div>`;
 }
 function mealChip(e){
@@ -2053,7 +2116,16 @@ function cookPrep(id){
 }
 
 const ACT = {
-  tab: el => { ui.tab = el.dataset.id === 'account' ? 'settings' : el.dataset.id; lsSet('pk-tab', ui.tab); ui.confirm = null; ui.gDraftSettings = false; ui.goalsEdit = false; window.scrollTo(0,0); },
+  moreOpen: () => { document.getElementById('moresheet').hidden = false; document.getElementById('sheetback').hidden = false; },
+  moreClose: () => closeMore(),
+  phoneTab: el => {
+    const id = el.dataset.id, cur = phoneTabs();
+    let next = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id];
+    if(next.length > 4){ toast('The tab bar holds 4. Remove one first.'); return; }
+    if(!next.length){ toast('Keep at least 1 tab in the bar.'); return; }
+    put('settings', 'prefs', {...prefs(), phoneTabs: TABS.map(t => t[0]).filter(x => next.includes(x))});
+  },
+  tab: el => { closeMore(); ui.tab = el.dataset.id === 'account' ? 'settings' : el.dataset.id; lsSet('pk-tab', ui.tab); ui.confirm = null; ui.gDraftSettings = false; ui.goalsEdit = false; window.scrollTo(0,0); },
   go: el => ACT.tab(el),
   goWeek: el => { ui.week = weekStart(el.dataset.date); ui.tab = 'planner'; lsSet('pk-tab','planner'); window.scrollTo(0,0); },
   goalsEdit: () => { ui.gDraft = Object.fromEntries(Object.entries(goals()).map(([k,v]) => [k, String(v)])); ui.goalsEdit = true; },
@@ -2186,7 +2258,7 @@ const ACT = {
   addCancel: () => { ui.addTo = null; },
   addMeal: () => {
     const p = S.preps[ui.add.prepId]; if(!p){ toast('Choose a prepped meal.'); return; }
-    const [date, slot] = ui.addTo.split('|');
+    const [date, cellSlot] = ui.addTo.split('|'), slot = cellSlot || ui.add.slot;
     put('plan', uid('m'), {date, slot, prepId: ui.add.prepId, recipeId: p.recipeId, name: prepName(p), status:'planned'});
     if(portionsLeft(p) - scheduledFor(p.id) < 0) toast('Heads up: that meal now has more days planned than portions.');
     ui.addTo = null;
