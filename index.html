@@ -973,14 +973,14 @@ async function fdcQuery(query, dataType, pageSize, all){
   const j = await res.json();
   return (j.foods || []).map(fdcToFood).filter(Boolean);
 }
-async function fdcSearch(q, dataType, pageSize){
-  const k = dataType + '|' + pageSize + '|' + q.toLowerCase();
+async function fdcSearch(q, dataType, pageSize, fallback){
+  const k = dataType + '|' + pageSize + '|' + !!fallback + '|' + q.toLowerCase();
   if(fdcCache.has(k)) return fdcCache.get(k);
   // Every word must match, and each word also matches longer ones ("thigh" finds "thighs", "kirkl" finds "Kirkland").
   const words = q.toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').split(/\s+/).filter(Boolean);
   let foods = await fdcQuery(words.map(w => w.length >= 3 ? w + '*' : w).join(' '), dataType, pageSize, true);
   // Nothing matches every word: fall back to the closest matches.
-  if(!foods.length && words.length > 1) foods = await fdcQuery(words.join(' '), dataType, pageSize, false);
+  if(fallback && !foods.length && words.length > 1) foods = await fdcQuery(words.join(' '), dataType, pageSize, false);
   fdcCache.set(k, foods); fdcLimited = false;
   return foods;
 }
@@ -1053,7 +1053,7 @@ function openSuggest(inp){
   const seq = ++suggest.seq;
   suggest.timer = setTimeout(async () => {
     try{
-      const [generic, brands] = await Promise.all([fdcSearch(q, 'Foundation,SR Legacy', 6), fdcSearch(q, 'Branded', 25)]);
+      const [generic, brands] = await Promise.all([fdcSearch(q, 'Foundation,SR Legacy', 6, false), fdcSearch(q, 'Branded', 25, true)]);
       if(seq !== suggest.seq) return;
       const seen = new Set();
       const uniq = arr => arr.filter(f => { const k = f.name.toLowerCase() + '|' + fk(f.per100.calories); if(seen.has(k)) return false; seen.add(k); return true; });
