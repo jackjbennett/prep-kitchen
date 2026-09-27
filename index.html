@@ -16,6 +16,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
+<script>
+// Apply the saved theme and text size before the page paints.
+try{ const a = JSON.parse(localStorage.getItem('pk-appearance') || '{}'); if(a.theme === 'light' || a.theme === 'dark') document.documentElement.dataset.theme = a.theme; if(a.textSize) document.documentElement.dataset.text = a.textSize; }catch(e){}
+</script>
 <style>
 html{color-scheme:light}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -307,6 +311,22 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .acctbtns{display:flex;gap:6px;flex-wrap:wrap}
 .acctmail{font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #installbtn{width:100%}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:var(--ink-2);font:600 13px Figtree,system-ui,sans-serif;padding:6px 12px;border-radius:7px;cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.setrow{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--line)}
+.card > h2 + .setrow{border-top:0;padding-top:0}
+.updatebar{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));z-index:60;width:min(640px,calc(100% - 32px));background:var(--surface);border:1px solid var(--accent);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ub-text{font-size:14px;flex:1 1 260px}
+.ub-text span{color:var(--ink-2)}
+:root{--z:1}
+:root[data-text="large"]{--z:1.1}
+:root[data-text="larger"]{--z:1.2}
+.app,.authwrap{zoom:var(--z)}
+.app{min-height:calc(100vh / var(--z))}
+.side{height:calc(100vh / var(--z))}
+.authwrap{min-height:calc(100vh / var(--z))}
+@media (max-width:860px){.side{height:auto}}
 .suggest{position:absolute;z-index:50;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.18);max-height:min(430px,60vh);overflow-y:auto;padding:6px}
 .sg-h{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);padding:8px 10px 4px}
 .sg-item{padding:7px 10px;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;gap:1px}
@@ -322,6 +342,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 </head>
 <body>
 
+<div id="updatebar" class="updatebar" role="status" hidden></div>
 <div id="auth" class="authwrap"></div>
 
 <div class="app" hidden>
@@ -333,7 +354,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
       <div class="date" id="todaylabel"></div>
       <div class="savestate" id="savestate"><span class="dot busy"></span>Connecting…</div>
       <div class="acctmail" id="acctmail"></div>
-      <div class="acctbtns"><button class="btn sm ghost" data-act="tab" data-id="account">Account</button><button class="btn sm ghost" data-act="signOut">Sign out</button></div>
+      <div class="acctbtns"><button class="btn sm ghost" data-act="signOut">Sign out</button></div>
     </div>
   </aside>
   <div class="content"><main id="main" class="wrap"></main></div>
@@ -523,7 +544,7 @@ function builtinFoods(){
   });
   return FOODS;
 }
-const TABS = [['today','Today'],['pantry','Pantry'],['recipes','Recipes'],['planner','Planner'],['fridge','Fridge'],['groceries','Groceries'],['alerts','Notifications']];
+const TABS = [['today','Today'],['pantry','Pantry'],['recipes','Recipes'],['planner','Planner'],['fridge','Fridge'],['groceries','Groceries'],['alerts','Notifications'],['settings','Settings']];
 const ICONS = {
   today:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   pantry:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M10 7.5h4M10 16.5h4"/>',
@@ -531,7 +552,8 @@ const ICONS = {
   planner:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h2M14 14h2M8 17.5h2"/>',
   fridge:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M5 10h14M9 5.5v2M9 13v3.5"/>',
   groceries:'<path d="M3 4h2.2l2.3 11h10.8L21 7.5H6.3"/><circle cx="9" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/>',
-  alerts:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.8 2H4.2z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'
+  alerts:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.8 2H4.2z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
 };
 
 /* ---------- helpers ---------- */
@@ -549,7 +571,7 @@ const parseD = s => { const [y,m,d] = String(s).split('-').map(Number); return n
 const today = () => ymd(new Date());
 const addDays = (s,n) => { const d = parseD(s); d.setDate(d.getDate()+n); return ymd(d); };
 const fmtD = (s, o={weekday:'short',month:'short',day:'numeric'}) => parseD(s).toLocaleDateString(undefined, o);
-const weekStart = s => { const d = parseD(s); return addDays(s, -((d.getDay()+6)%7)); };
+const weekStart = s => { const d = parseD(s), first = prefs().weekStart === 'sun' ? 0 : 1; return addDays(s, -((d.getDay() - first + 7) % 7)); };
 const daysBetween = (a,b) => Math.round((parseD(b)-parseD(a))/86400000);
 const opts = (list, sel) => list.map(o => { const [v,l] = Array.isArray(o) ? o : [o,o]; return `<option value="${esc(v)}"${String(v)===String(sel)?' selected':''}>${esc(l)}</option>`; }).join('');
 function getPath(o, p){ return p.split('.').reduce((a,k)=> a == null ? undefined : a[k], o); }
@@ -561,6 +583,15 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
+const APP_VERSION = '2026.09.27.1457';
+const DEFAULT_PREFS = {theme:'system', textSize:'standard', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4};
+function prefs(){ return {...DEFAULT_PREFS, ...(S.settings.prefs || {})}; }
+function applyAppearance(){
+  const p = prefs(), root = document.documentElement;
+  if(p.theme === 'light' || p.theme === 'dark') root.dataset.theme = p.theme; else delete root.dataset.theme;
+  root.dataset.text = p.textSize;
+  lsSet('pk-appearance', JSON.stringify({theme:p.theme, textSize:p.textSize}));
+}
 const T0 = today();
 const ui = {
   tab: TABS.some(t=>t[0]===lsGet('pk-tab')) ? lsGet('pk-tab') : 'today',
@@ -651,7 +682,12 @@ async function onSignedIn(session){
   const changed = !user || user.id !== session.user.id;
   user = session.user;
   showApp(true);
-  if(changed){ clearData(); mode = 'connecting'; render(); await refresh(); }
+  if(changed){
+    clearData(); mode = 'connecting'; render(); await refresh();
+    const p = prefs();
+    applyAppearance(); ui.week = weekStart(today()); ui.prep.slot = p.defaultSlot; ui.add.slot = p.defaultSlot;
+    render();
+  }
 }
 function onSignedOut(){
   user = null; clearData();
@@ -758,7 +794,15 @@ function pantryHave(name, unit){
 }
 function scaled(r, portions){
   const f = num(portions) / (num(r.servings) || 1);
-  return (r.ingredients||[]).map(i => ({name:i.name, unit:i.unit, qty:num(i.qty)*f}));
+  return (r.ingredients||[]).map(i => {
+    const qty = num(i.qty) * f;
+    // Servings become grams for pantry, cooking and grocery math; srv keeps the serving view for display.
+    if(i.unit === 'serving'){
+      const sv = servingOf(findFood(i.name, i.foodId));
+      if(sv) return {name:i.name, unit:'g', qty: qty * sv.g, srv:{qty, text: sv.text}};
+    }
+    return {name:i.name, unit:i.unit, qty};
+  });
 }
 function checkNeeds(needs){
   return needs.map(n => {
@@ -851,7 +895,27 @@ function findFood(name, foodId){
   }
   return null;
 }
+// One serving of a food: the label serving for brands and label foods, one piece for things
+// counted in pieces (an egg), otherwise 100 g.
+function servingOf(food){
+  if(!food) return null;
+  const sg = num(food.servingG);
+  if(sg > 0){
+    const t = String(food.servingText || '').trim();
+    return {g: sg, text: t && !/^[\d.]+\s*(g|ml)$/.test(t) ? `${t}, ${fq(sg)} g` : `${fq(sg)} g`};
+  }
+  if(num(food.gPerPc) > 0) return {g: num(food.gPerPc), text: `1 piece, ${fq(food.gPerPc)} g`};
+  return {g: 100, text: '100 g'};
+}
+function gramsToUnit(g, unit, food){
+  if(unit === 'serving'){ const sv = servingOf(food); return sv ? g / sv.g : null; }
+  const u = UNITS[unit]; if(!u) return null;
+  if(u[0] === 'mass') return conv(g, 'g', unit);
+  if(u[0] === 'vol') return conv(g / (num(food && food.gPerMl) || 1), 'ml', unit);
+  return food && num(food.gPerPc) > 0 ? g / num(food.gPerPc) : null;
+}
 function gramsOf(qty, unit, food){
+  if(unit === 'serving'){ const sv = servingOf(food); return sv ? num(qty) * sv.g : null; }
   const u = UNITS[unit]; if(!u) return null;
   if(u[0] === 'mass') return conv(num(qty), unit, 'g');
   if(u[0] === 'vol') return conv(num(qty), unit, 'ml') * (num(food.gPerMl) || 1);
@@ -1082,7 +1146,8 @@ function pickFood(n){
     const ing = ui.rEdit && ui.rEdit.ingredients[+kind.slice(7)];
     if(ing){
       ing.name = name; ing.foodId = f.id;
-      if(!ing.qty && f.source === 'brand' && f.servingG){ ing.qty = String(f.servingG); ing.unit = 'g'; }
+      // A new pick starts at 1 serving; an amount already typed is kept.
+      if(!ing.qty || ing.unit === 'serving'){ ing.qty = ing.qty || '1'; ing.unit = 'serving'; }
     }
     render();
     const q = document.getElementById(`f-rEdit-ingredients-${kind.slice(7)}-qty`); if(q){ q.focus(); q.select && q.select(); }
@@ -1133,7 +1198,7 @@ function renderTabs(){
     groceries: listN ? `<span class="cnt">${listN}</span>` : ''
   };
   document.getElementById('tabs').innerHTML = TABS.map(([id,label]) =>
-    `${id==='pantry'?'<div class="navsep"></div>':''}<button class="navbtn${ui.tab===id?' on':''}" data-act="tab" data-id="${id}" ${ui.tab===id?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg>${label}${extra[id]||''}</button>`).join('');
+    `${id==='pantry' || id==='settings'?'<div class="navsep"></div>':''}<button class="navbtn${ui.tab===id?' on':''}" data-act="tab" data-id="${id}" ${ui.tab===id?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg>${label}${extra[id]||''}</button>`).join('');
   document.getElementById('todaylabel').textContent = new Date().toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
   document.getElementById('acctmail').textContent = user ? user.email : '';
   document.getElementById('installbtn').hidden = !installEvent;
@@ -1148,7 +1213,7 @@ function render(){
   if(loaded.size < COLS.length) html = mode === 'off' ? offNote : `<div class="empty">Loading your kitchen…</div>`;
   else {
     if(mode === 'off') html += offNote;
-    html += ({today:viewToday, pantry:viewPantry, recipes:viewRecipes, planner:viewPlanner, fridge:viewFridge, groceries:viewGroceries, alerts:viewAlerts, account:viewAccount})[ui.tab]();
+    html += ({today:viewToday, pantry:viewPantry, recipes:viewRecipes, planner:viewPlanner, fridge:viewFridge, groceries:viewGroceries, alerts:viewAlerts, settings:viewSettings, account:viewSettings})[ui.tab]();
   }
   $main.innerHTML = html;
   if(fid){
@@ -1173,19 +1238,53 @@ function checkField(label, bind){
   return `<label class="check"><input type="checkbox" id="f-${bind.replace(/\./g,'-')}" data-bind="${bind}" ${getPath(ui,bind)?'checked':''}>${label}</label>`;
 }
 
-/* ----- Account ----- */
-function viewAccount(){
+/* ----- Settings ----- */
+function seg(k, options){
+  const v = prefs()[k];
+  return `<div class="seg" role="radiogroup">${options.map(([val, label]) => `<button class="${String(v) === String(val) ? 'on' : ''}" role="radio" aria-checked="${String(v) === String(val)}" data-act="pref" data-k="${k}" data-v="${esc(val)}">${label}</button>`).join('')}</div>`;
+}
+function viewSettings(){
   const counts = COLS.filter(c => c !== 'settings').map(c => [c, Object.keys(S[c]).length]);
   const label = {pantry:'pantry items', recipes:'recipes', preps:'preps', plan:'calendar meals', shopping:'list items', foods:'saved foods'};
+  const p = prefs(), g = goals();
+  if(!ui.gDraftSettings){ ui.gDraft = Object.fromEntries(Object.entries(g).map(([k,v]) => [k, String(v)])); ui.gDraftSettings = true; }
   return `
-  <div class="pagehead"><div><h1>Account</h1><p class="sub">Signed in as <b>${esc(user.email)}</b>. Your kitchen is private to this account.</p></div>
-    <button class="btn" data-act="signOut">Sign out</button></div>
+  <div class="pagehead"><div><h1>Settings</h1><p class="sub">Signed in as <b>${esc(user.email)}</b>. Settings are saved to your account and follow you to every device.</p></div></div>
   <div class="cols2">
-    <div class="card stack">
-      <h2>Change password</h2>
-      <label class="f">New password<input id="f-acct-newPw" type="password" autocomplete="new-password" value="${esc(ui.acct.newPw)}" data-bind="acct.newPw" data-norender></label>
-      <div class="row"><button class="btn primary" data-act="changePw">Save new password</button></div>
+    <div class="stack">
+      <div class="card stack">
+        <h2>Appearance</h2>
+        <div class="setrow"><div><b>Theme</b><p class="small muted">System follows your computer or phone.</p></div>${seg('theme', [['system','System'],['light','Light'],['dark','Dark']])}</div>
+        <div class="setrow"><div><b>Text size</b><p class="small muted">Makes everything a little bigger.</p></div>${seg('textSize', [['standard','Standard'],['large','Large'],['larger','Larger']])}</div>
+      </div>
+      <div class="card stack">
+        <h2>Planner & fridge</h2>
+        <div class="setrow"><div><b>Week starts on</b></div>${seg('weekStart', [['mon','Monday'],['sun','Sunday']])}</div>
+        <div class="setrow"><div><b>Default meal for new preps</b><p class="small muted">Which meal a new batch goes on in the calendar.</p></div>
+          <select id="f-pref-defaultSlot" data-change="prefSel" data-k="defaultSlot">${opts(SLOTS, p.defaultSlot)}</select></div>
+        <div class="setrow"><div><b>Flag fridge meals after</b><p class="small muted">Prepped meals get a warning once they've been in the fridge this long.</p></div>
+          <select id="f-pref-fridgeDays" data-change="prefSel" data-k="fridgeDays">${opts([3,4,5,6,7].map(d => [d, d + ' days']), p.fridgeDays)}</select></div>
+      </div>
+      <div class="card stack">
+        <h2>Daily nutrition goals</h2>
+        <div class="row end">
+          ${[['calories','Calories (kcal)'],['protein','Protein (g)'],['carbs','Carbs (g)'],['fat','Fat (g)']].map(([k,l]) => `<label class="f">${l}<input id="f-set-gDraft-${k}" class="w-num" type="number" min="0" step="any" value="${esc(ui.gDraft[k])}" data-bind="gDraft.${k}" data-norender></label>`).join('')}
+          <button class="btn primary" data-act="goalsSave">Save goals</button>
+        </div>
+      </div>
     </div>
+    <div class="stack">
+      <div class="card stack">
+        <h2>Account</h2>
+        <label class="f">New password<input id="f-acct-newPw" type="password" autocomplete="new-password" value="${esc(ui.acct.newPw)}" data-bind="acct.newPw" data-norender></label>
+        <div class="row"><button class="btn" data-act="changePw">Change password</button><span class="spacer"></span><button class="btn" data-act="signOut">Sign out</button></div>
+      </div>
+      <div class="card stack">
+        <h2>About Prep Kitchen</h2>
+        <p class="small">Version ${APP_VERSION}. Updates arrive automatically, and a banner tells you when a new version is ready.</p>
+        <div class="row"><button class="btn" data-act="checkUpdate">Check for updates</button>${installEvent ? '<button class="btn" data-act="install">Install as an app</button>' : ''}</div>
+        <p class="small muted">Food and brand nutrition: USDA FoodData Central.</p>
+      </div>
     <div class="card stack">
       <h2>Backup</h2>
       <p class="small muted">Your kitchen is saved online automatically. A backup file is an extra copy you keep yourself, and it's also how you bring data over from another account.</p>
@@ -1196,10 +1295,34 @@ function viewAccount(){
         <input id="importfile" type="file" accept=".json,application/json" data-change="importFile" hidden>
       </div>
       <p class="small muted">Restoring adds the backup's items to this account and updates any with the same ID. Nothing else is deleted.</p>
+      ${ui.acct.msg ? `<div class="notice">${esc(ui.acct.msg)}</div>` : ''}
     </div>
-  </div>
-  ${ui.acct.msg ? `<div class="notice">${esc(ui.acct.msg)}</div>` : ''}`;
+    </div>
+  </div>`;
 }
+
+/* ----- Update notice ----- */
+let updateInfo = null, lastUpdateCheck = 0;
+async function checkForUpdate(manual){
+  lastUpdateCheck = Date.now();
+  try{
+    const res = await fetch('version.json?t=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) throw new Error('http');
+    const v = await res.json();
+    if(v.version && v.version !== APP_VERSION){ updateInfo = v; renderUpdateBar(); }
+    else if(manual) toast('You have the latest version.');
+  }catch(e){ if(manual) toast("Couldn't check for updates. Check your internet connection."); }
+}
+function renderUpdateBar(){
+  const el = document.getElementById('updatebar');
+  if(!updateInfo){ el.hidden = true; return; }
+  el.innerHTML = `<div class="ub-text"><b>A new version of Prep Kitchen is ready.</b>${updateInfo.notes ? ` <span>${esc(updateInfo.notes)}</span>` : ''}</div>
+    <div class="row"><button class="btn sm primary" data-act="applyUpdate">Update now</button><button class="btn sm ghost" data-act="dismissUpdate">Later</button></div>`;
+  el.hidden = false;
+}
+setTimeout(() => checkForUpdate(false), 4000);
+setInterval(() => { if(!document.hidden) checkForUpdate(false); }, 10 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden && Date.now() - lastUpdateCheck > 60000) checkForUpdate(false); });
 const EXAMPLE_RECIPES = {
   ex_chicken_bowl: {name:'Chicken, Rice & Broccoli Bowls', servings:4, time:'40 min', autoNutrition:true,
     ingredients:[{name:'Chicken breast',qty:900,unit:'g'},{name:'Jasmine rice',qty:300,unit:'g'},{name:'Broccoli',qty:600,unit:'g'},{name:'Olive oil',qty:2,unit:'tbsp'},{name:'Soy sauce',qty:4,unit:'tbsp'},{name:'Garlic',qty:4,unit:'pc'}],
@@ -1387,8 +1510,8 @@ function ingList(checks){
   return `<div>${checks.map(c => `
     <div class="ing">
       <span class="ic ${c.status}" aria-hidden="true">${c.status==='ok'?'✓':c.status==='short'?'!':'✕'}</span>
-      <div><div><b>${niceQty(c.qty,c.unit)} ${esc(c.unit)}</b> ${esc(c.name)}</div>
-        <div class="have">${c.mismatch ? 'In pantry under a different kind of unit' : `Have ${fq(c.have)} ${esc(c.unit)}`}</div></div>
+      <div><div><b>${c.srv ? `${fq(c.srv.qty)} serving${c.srv.qty === 1 ? '' : 's'}` : `${niceQty(c.qty,c.unit)} ${esc(c.unit)}`}</b> ${esc(c.name)}</div>
+        <div class="have">${c.srv ? `1 serving = ${esc(c.srv.text)} · ` : ''}${c.mismatch ? 'In pantry under a different kind of unit' : `Have ${fq(c.have)} ${esc(c.unit)}`}</div></div>
       <span>${c.status==='ok' ? '<span class="pill ok">Have it</span>' : c.status==='short' ? `<span class="pill warn">Short ${niceQty(c.gap,c.unit)} ${esc(c.unit)}</span>` : '<span class="pill bad">Missing</span>'}</span>
     </div>`).join('')}</div>`;
 }
@@ -1486,7 +1609,7 @@ function viewRecipeEditor(){
         <div class="edrow">
           <input id="f-rEdit-ingredients-${ix}-name" data-food="recipe:${ix}" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggest" value="${esc(i.name)}" data-bind="rEdit.ingredients.${ix}.name" data-norender placeholder="Ingredient, e.g. Olive oil" aria-label="Ingredient name">
           <input id="f-rEdit-ingredients-${ix}-qty" type="number" step="any" min="0" value="${esc(i.qty)}" data-bind="rEdit.ingredients.${ix}.qty" data-norender placeholder="Amount" aria-label="Amount">
-          <select id="f-rEdit-ingredients-${ix}-unit" data-bind="rEdit.ingredients.${ix}.unit" data-norender aria-label="Unit">${opts(UNIT_LIST, i.unit)}</select>
+          <select id="f-rEdit-ingredients-${ix}-unit" data-bind="rEdit.ingredients.${ix}.unit" data-norender aria-label="Unit">${(() => { const sv = servingOf(findFood(i.name, i.foodId)); return opts([['serving', sv ? `serving (${sv.text})` : 'serving'], ...UNIT_LIST], i.unit); })()}</select>
           <button class="btn sm ghost danger" data-act="ingRemove" data-ix="${ix}" aria-label="Remove ingredient">Remove</button>
         </div>
         <div class="edinfo" id="ing-info-${ix}"></div>
@@ -1620,7 +1743,7 @@ function viewFridge(){
     const sch = Math.min(scheduledFor(p.id), num(p.remaining));
     const n = nutr(S.recipes[p.recipeId]);
     return `<div class="card fitem">
-      <div class="row" style="justify-content:space-between;align-items:flex-start"><h2>${esc(prepName(p))}</h2>${age >= 4 ? `<span class="pill ${age>=5?'bad':'warn'}">Day ${age+1} in fridge</span>` : `<span class="pill">Day ${age+1} in fridge</span>`}</div>
+      <div class="row" style="justify-content:space-between;align-items:flex-start"><h2>${esc(prepName(p))}</h2>${age >= num(prefs().fridgeDays) ? `<span class="pill ${age > num(prefs().fridgeDays) ? 'bad' : 'warn'}">Day ${age+1} in fridge</span>` : `<span class="pill">Day ${age+1} in fridge</span>`}</div>
       <div class="count">${fq(p.remaining)}<small>of ${fq(p.portions)} left</small></div>
       <div class="portions" aria-hidden="true">${Array.from({length:Math.ceil(num(p.remaining))}, (_,i) => `<i class="${i < sch ? 'sched' : ''}"></i>`).join('')}</div>
       <p class="small muted">${sch} on the calendar · ${Math.max(0, num(p.remaining) - sch)} unscheduled · prepped ${fmtD(p.cookedOn || t)} · ${fk(n.calories)} kcal each</p>
@@ -1756,7 +1879,7 @@ function cookPrep(id){
 }
 
 const ACT = {
-  tab: el => { ui.tab = el.dataset.id; lsSet('pk-tab', ui.tab); ui.confirm = null; window.scrollTo(0,0); },
+  tab: el => { ui.tab = el.dataset.id === 'account' ? 'settings' : el.dataset.id; lsSet('pk-tab', ui.tab); ui.confirm = null; ui.gDraftSettings = false; ui.goalsEdit = false; window.scrollTo(0,0); },
   go: el => ACT.tab(el),
   goWeek: el => { ui.week = weekStart(el.dataset.date); ui.tab = 'planner'; lsSet('pk-tab','planner'); window.scrollTo(0,0); },
   goalsEdit: () => { ui.gDraft = Object.fromEntries(Object.entries(goals()).map(([k,v]) => [k, String(v)])); ui.goalsEdit = true; },
@@ -1793,11 +1916,20 @@ const ACT = {
     const p = phrase(ui.labelFor);
     put('foods', ('f-' + p.replace(/[^a-z0-9%]+/g,'-').replace(/%/g,'pct')).slice(0, 150) || uid('f'), {
       name: ui.labelFor.slice(0, 80), aliases: [p, phrase(ui.labelFor, true)], per100,
-      gPerMl: 1, gPerPc: num(L.pc) > 0 ? num(L.pc) : null, source:'label', addedOn: today()});
+      gPerMl: 1, gPerPc: num(L.pc) > 0 ? num(L.pc) : null, servingG: g, servingText: `${fq(g)} ${L.sUnit || 'g'}`, source:'label', addedOn: today()});
     toast(`Saved ${ui.labelFor}. It fills in automatically from now on.`);
     ui.labelFor = null;
   },
   authMode: el => { ui.auth.mode = el.dataset.mode; ui.auth.err = ''; ui.auth.msg = ''; renderAuth(); },
+  pref: el => {
+    const k = el.dataset.k, v = el.dataset.v;
+    put('settings', 'prefs', {...prefs(), [k]: v});
+    if(k === 'theme' || k === 'textSize') applyAppearance();
+    if(k === 'weekStart') ui.week = weekStart(today());
+  },
+  checkUpdate: () => checkForUpdate(true),
+  applyUpdate: () => { location.reload(); },
+  dismissUpdate: () => { updateInfo = null; renderUpdateBar(); },
   signOut: async () => {
     if(pendingCount()){ toast('Still saving your last change. Try again in a moment.'); return; }
     await sb.auth.signOut();
@@ -1926,6 +2058,11 @@ const CHANGE = {
     patch('pantry', el.dataset.id, {unit: el.value, qty: c === null ? num(p.qty) : Math.round(c*1000)/1000, lowAt: p.lowAt == null || p.lowAt === '' ? null : (lc === null ? num(p.lowAt) : Math.round(lc*1000)/1000)}); },
   plow: el => patch('pantry', el.dataset.id, {lowAt: el.value === '' ? null : num(el.value)}),
   shopCheck: el => patch('shopping', el.dataset.id, {checked: el.checked}),
+  prefSel: el => {
+    const k = el.dataset.k, v = k === 'fridgeDays' ? num(el.value) : el.value;
+    put('settings', 'prefs', {...prefs(), [k]: v});
+    if(k === 'defaultSlot'){ ui.prep.slot = v; ui.add.slot = v; }
+  },
   importFile: async el => {
     const file = el.files && el.files[0]; el.value = '';
     if(!file) return;
@@ -1959,6 +2096,21 @@ document.addEventListener('click', ev => {
 });
 document.addEventListener('input', ev => {
   const el = ev.target.closest('[data-bind]'); if(!el) return;
+  const um = el.dataset.bind.match(/^rEdit\.ingredients\.(\d+)\.unit$/);
+  if(um && ui.rEdit){
+    // Changing the unit keeps the same amount of food: 1 serving -> 112 g -> 3.95 oz.
+    const ing = ui.rEdit.ingredients[+um[1]];
+    if(ing && num(ing.qty) > 0){
+      const food = findFood(ing.name, ing.foodId);
+      const g = food ? gramsOf(ing.qty, ing.unit, food) : null;
+      let q = g != null ? gramsToUnit(g, el.value, food) : conv(num(ing.qty), ing.unit, el.value);
+      if(q != null && isFinite(q)){
+        q = q >= 10 ? Math.round(q * 10) / 10 : Math.round(q * 100) / 100;
+        ing.qty = String(q);
+        const qi = document.getElementById(`f-rEdit-ingredients-${um[1]}-qty`); if(qi) qi.value = ing.qty;
+      }
+    }
+  }
   setPath(ui, el.dataset.bind, el.type === 'checkbox' ? el.checked : el.value);
   if(el.dataset.bind === 'prep.cookDate' && !ui.prep.startTouched) ui.prep.start = el.value;
   if(el.dataset.bind === 'prep.start') ui.prep.startTouched = true;
