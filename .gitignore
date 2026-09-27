@@ -1,0 +1,4 @@
+# Personal data and the old claude.ai version stay on this computer only.
+legacy/
+backup/
+*.backup.json
