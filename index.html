@@ -583,7 +583,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.09.27.1457';
+const APP_VERSION = '2026.09.27.1458';
 const DEFAULT_PREFS = {theme:'system', textSize:'standard', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4};
 function prefs(){ return {...DEFAULT_PREFS, ...(S.settings.prefs || {})}; }
 function applyAppearance(){
@@ -897,8 +897,28 @@ function findFood(name, foodId){
 }
 // One serving of a food: the label serving for brands and label foods, one piece for things
 // counted in pieces (an egg), otherwise 100 g.
+// Usual serving sizes for the built-in foods (label-style), as [amount, unit].
+const SERVING_HINTS = (() => {
+  const h = {};
+  const set = (names, s) => names.split('|').forEach(n => { h[n] = s; });
+  set('olive oil|vegetable oil|coconut oil|butter|honey|maple syrup|soy sauce|teriyaki sauce|heavy cream|chia seed', [1, 'tbsp']);
+  set('peanut butter|mayonnaise|ketchup|mustard|bbq sauce|ranch|hot sauce|pesto|salsa|parmesan|sour cream|cream cheese|hummus', [2, 'tbsp']);
+  set('salt|black pepper|chili powder|cumin|paprika|garlic powder|onion powder|cinnamon|italian seasoning|basil|thyme|rosemary|red pepper flake|turmeric|curry powder|taco seasoning|baking powder|baking soda|vanilla extract|sugar|cooking spray', [1, 'tsp']);
+  set('milk|whole milk|almond milk|oat milk|chicken broth|spinach|kale|broccoli|cauliflower|romaine|blueberry|strawberry|raspberry|grape|pineapple|mixed vegetable|cooked rice|green bean|pea|corn|mushroom', [1, 'cup']);
+  set('white rice|brown rice|quinoa|lentil|flour', [0.25, 'cup']);
+  set('rolled oat|black bean|chickpea|kidney bean|cottage cheese|marinara|coconut milk|edamame|granola', [0.5, 'cup']);
+  set('chicken breast|chicken thigh|ground turkey|ground beef|ground chicken|steak|pork tenderloin|pork chop|salmon|cod|shrimp|tofu', [4, 'oz']);
+  set('cheddar|mozzarella|feta|almond|walnut|peanut|cashew|pasta|rice noodle|tortilla chip|chocolate chip|ham|deli turkey|raisin', [1, 'oz']);
+  set('greek yogurt', [170, 'g']);
+  return h;
+})();
 function servingOf(food){
   if(!food) return null;
+  if(food.source === 'built-in' && SERVING_HINTS[food.name]){
+    const [q, u] = SERVING_HINTS[food.name];
+    const g = gramsOf(q, u, food);
+    if(g > 0) return {g, text: u === 'g' ? `${fq(q)} g` : `${fq(q)} ${u}, ${fq(Math.round(g * 10) / 10)} g`};
+  }
   const sg = num(food.servingG);
   if(sg > 0){
     const t = String(food.servingText || '').trim();
