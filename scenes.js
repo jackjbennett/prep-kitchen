@@ -72,17 +72,28 @@
     const core = c.createRadialGradient(0, 0, 0, 0, 0, G * 0.35);
     core.addColorStop(0, dark ? 'rgba(255,236,200,.9)' : 'rgba(255,226,180,.9)'); core.addColorStop(0.4, dark ? 'rgba(255,190,160,.35)' : 'rgba(240,170,200,.35)'); core.addColorStop(1, 'rgba(255,200,200,0)');
     c.fillStyle = core; c.fillRect(-G, -G, G * 2, G * 2);
-    for(let arm = 0; arm < 3; arm++){
-      for(let i = 0; i < 520; i++){
-        const f = Math.pow(Math.random(), 0.7), r = f * G * 0.95;
-        const a = arm * TAU / 3 + f * 5.2 + rand(-0.32, 0.32) * (1 - f * 0.5);
-        const x = Math.cos(a) * r + rand(-3, 3), y = Math.sin(a) * r + rand(-3, 3);
-        const col = f < 0.25 ? [255, 225, 190] : (Math.random() < 0.5 ? [170, 190, 255] : [230, 160, 255]);
-        const al = (1 - f) * (dark ? 0.8 : 0.6) * rand(0.3, 1);
+    const u = G / 160;
+    for(let arm = 0; arm < 2; arm++){
+      for(let i = 0; i < 1500; i++){
+        // Points spread along a logarithmic-looking spiral, tighter near the core.
+        const f = Math.random(), r = (0.08 + f * 0.9) * G;
+        const spread = (0.12 + f * 0.28) * rand(-1, 1) * rand(0, 1);
+        const a = arm * Math.PI + f * 7.5 + spread;
+        const x = Math.cos(a) * r, y = Math.sin(a) * r;
+        const col = f < 0.2 ? [255, 228, 196] : (Math.random() < 0.55 ? [160, 190, 255] : [235, 165, 255]);
+        const al = Math.pow(1 - f, 0.8) * (dark ? 0.85 : 0.65) * rand(0.35, 1);
         c.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${al})`;
-        c.beginPath(); c.arc(x, y, rand(0.4, 1.6) * (G / 160), 0, TAU); c.fill();
+        c.beginPath(); c.arc(x, y, rand(0.3, 1.2) * u, 0, TAU); c.fill();
+        // Soft dust glow along the arms.
+        if(i % 30 === 0){
+          const g2 = c.createRadialGradient(x, y, 0, x, y, G * 0.09);
+          g2.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},${0.12 * (1 - f)})`); g2.addColorStop(1, `rgba(${col[0]},${col[1]},${col[2]},0)`);
+          c.fillStyle = g2; c.fillRect(x - G * 0.09, y - G * 0.09, G * 0.18, G * 0.18);
+        }
       }
     }
+    // Scattered halo stars.
+    for(let i = 0; i < 260; i++){ const a = rand(0, TAU), r = Math.sqrt(Math.random()) * G; c.fillStyle = `rgba(255,255,255,${rand(0.1, 0.5)})`; c.beginPath(); c.arc(Math.cos(a) * r, Math.sin(a) * r, rand(0.3, 0.9) * u, 0, TAU); c.fill(); }
     return cv;
   }
   function sphereImage(R, cols, craters, dark){
