@@ -237,7 +237,7 @@
       const y0 = hillY + th * 0.05;
       c.beginPath();
       for(let tier = 0; tier < 3; tier++){
-        const ty = y0 - th * (0.3 + tier * 0.27), tw2 = tw * (1 - tier * 0.26);
+        const ty = y0 - th * (0.12 + tier * 0.27), tw2 = tw * (1 - tier * 0.26);
         c.moveTo(x, ty - th * 0.42); c.lineTo(x + tw2 / 2, ty + th * 0.08); c.lineTo(x - tw2 / 2, ty + th * 0.08); c.closePath();
       }
       c.fill();
