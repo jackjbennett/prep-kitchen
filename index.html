@@ -429,6 +429,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .sg-foot{font-size:11px;color:var(--ink-2);padding:6px 10px 2px;border-top:1px solid var(--line);margin-top:4px}
 .labelform{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px}
 .scanpick{max-width:520px}
+.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
 .scanpick .btn.big{text-align:center}
 .scanread{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
 .scanimg{width:140px;max-height:260px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
@@ -696,7 +697,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.10.03.1627';
+const APP_VERSION = '2026.10.03.1628';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }
@@ -1558,7 +1559,9 @@ async function runScan(file){
     await worker.terminate();
     if(ui.scan !== s) return;
     s.raw = best.data.text || ''; s.conf = Math.round(num(best.data.confidence));
-    s.items = best.items.length ? best.items : parseReceiptLoose(s.raw);
+    // Below 40% the reader is mostly guessing; say so instead of listing gibberish.
+    s.lowQuality = s.conf < 40;
+    s.items = s.lowQuality ? [] : (best.items.length ? best.items : (s.conf >= 55 ? parseReceiptLoose(s.raw) : []));
     s.noPrices = !best.items.length && s.items.length > 0;
     s.stage = 'review';
   }catch(e){
@@ -1667,6 +1670,17 @@ function viewScan(){
       </div>
     </div>`;
   if(s.stage === 'error') return head + `<div class="card stack"><p class="autherr">${esc(s.err)}</p><div class="row"><button class="btn primary" data-act="scanRestart">Try another photo</button></div></div>`;
+  if(s.lowQuality) return head + `<div class="card stack">
+      <div class="scanread">${s.imgUrl ? `<img src="${s.imgUrl}" alt="Your receipt" class="scanimg">` : ''}
+        <div class="stack" style="flex:1 1 240px">
+          <h2>This photo was too hard to read</h2>
+          <p class="small">The text reader was only ${s.conf}% sure of the letters, so the items would mostly be guesses. Try again with:</p>
+          <ul class="small tips"><li>The receipt flat on a dark table, not curled</li><li>Bright, even light with no shadow across it</li><li>The phone held straight above it, close enough that the text fills the frame</li><li>Tap the screen to focus before taking the photo</li></ul>
+          <div class="row"><button class="btn primary" data-act="scanRestart">Try another photo</button><button class="btn ghost" data-act="scanRaw">${s.showRaw ? 'Hide' : 'Show'} what it read anyway</button></div>
+        </div>
+      </div>
+      ${s.showRaw ? `<pre class="rawtext">${esc(s.raw || '(no text found)')}</pre>` : ''}
+    </div>`;
   const on = s.items.filter(i => i.on && i.name.trim());
   const sum = on.reduce((a, i) => a + num(i.price), 0);
   return head + `
