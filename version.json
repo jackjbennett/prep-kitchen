@@ -1,4 +1,4 @@
 {
-    "version":  "2026.10.03.1628",
-    "notes":  "New: scan a grocery receipt to add items to your pantry (Pantry or Groceries, Scan a receipt)."
+    "version":  "2026.10.03.1732",
+    "notes":  "New: scan product barcodes to add items to your pantry or shopping list (Pantry, Scan barcodes)."
 }

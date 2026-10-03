@@ -428,6 +428,34 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .sg-note{font-size:13px;color:var(--ink-2);padding:10px}
 .sg-foot{font-size:11px;color:var(--ink-2);padding:6px 10px 2px;border-top:1px solid var(--line);margin-top:4px}
 .labelform{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px}
+/* Barcode scanner: full-screen camera with a product sheet. */
+.bc{position:fixed;inset:0;z-index:45;background:#000;display:block;color:#fff}
+.bc[hidden]{display:none}
+html.bc-open,html.bc-open body{overflow:hidden}
+.bc video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.bc-frame{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);width:min(78vw,420px);aspect-ratio:2.1/1;border-radius:16px;box-shadow:0 0 0 200vmax rgba(0,0,0,.45);pointer-events:none}
+.bc-frame::before{content:"";position:absolute;inset:0;border:3px solid rgba(255,255,255,.9);border-radius:16px}
+.bc-frame i{position:absolute;left:8%;right:8%;top:50%;height:2px;background:var(--accent);box-shadow:0 0 12px var(--accent);border-radius:2px}
+@media (prefers-reduced-motion: no-preference){.bc-frame i{animation:bcscan 1.8s ease-in-out infinite}}
+@keyframes bcscan{0%,100%{transform:translateY(-34px)}50%{transform:translateY(34px)}}
+.bc-top{position:absolute;left:0;right:0;top:0;padding:calc(12px + env(safe-area-inset-top,0px)) 14px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,0))}
+.bc-btn{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:8px 16px;font:700 14px Figtree,system-ui,sans-serif;cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.bc-dest{background:rgba(255,255,255,.18)}
+.bc-dest button{color:rgba(255,255,255,.85)}
+.bc-dest button.on{background:#fff;color:#111}
+.bc-hint{position:absolute;left:0;right:0;top:calc(40% + min(19vw,100px) + 18px);text-align:center;font:600 15px Figtree,system-ui,sans-serif;text-shadow:0 1px 6px rgba(0,0,0,.7);padding-inline:16px}
+.bc-tally{position:absolute;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,.55);border-radius:12px;padding:10px 14px;font-size:13px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.bc-tally[hidden]{display:none}
+.bc-sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);color:var(--ink);border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;max-height:75vh;overflow-y:auto;box-shadow:0 -10px 40px rgba(0,0,0,.4);max-width:640px;margin:0 auto}
+.bc-sheet[hidden]{display:none}
+.bc-sheet input:not([type=checkbox]){width:100%}
+.bc-sheet .w-num{width:96px}
+.bc-prod{display:flex;gap:12px;align-items:flex-start}
+.bc-img{width:64px;height:64px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--line);flex:none}
+.spin{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--accent);display:inline-block}
+@media (prefers-reduced-motion: no-preference){.spin{animation:spin .8s linear infinite}}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast{z-index:70}
 .scanpick{max-width:520px}
 .tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
 .scanpick .btn.big{text-align:center}
@@ -697,7 +725,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.10.03.1628';
+const APP_VERSION = '2026.10.03.1732';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }
@@ -1577,6 +1605,193 @@ function updateScanProgress(){
   if(st) st.textContent = s.status + (s.progress > 0.16 ? ` ${Math.round(s.progress * 100)}%` : '');
 }
 
+/* ---------- barcode scanner ---------- */
+// Uses the phone's built-in barcode reader when it has one (Android, Chrome) and the open-source
+// ZXing reader everywhere else (iPhone). Products are looked up in Open Food Facts, then in the
+// USDA branded foods list. Barcodes you name yourself are remembered in your foods.
+const BD_SRC = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/dist/iife/ponyfill.min.js';
+const BC_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
+const bc = {stream: null, det: null, timer: 0, busy: false, paused: false, last: '', lastAt: 0, audio: null, added: [], item: null, dest: lsGet('pk-bc-dest') === 'list' ? 'list' : 'pantry'};
+const codeKey = c => String(c || '').replace(/\D/g, '').replace(/^0+/, '');
+async function getDetector(){
+  if('BarcodeDetector' in window){
+    try{ const f = await BarcodeDetector.getSupportedFormats(); if(f.includes('ean_13')) return new BarcodeDetector({formats: BC_FORMATS.filter(x => f.includes(x))}); }catch(e){}
+  }
+  if(!window.BarcodeDetectionAPI) await loadScript(BD_SRC);
+  return new window.BarcodeDetectionAPI.BarcodeDetector({formats: BC_FORMATS});
+}
+const OFF_CATS = [['Frozen', /frozen/], ['Meat & Fish', /meats|poultr|chicken|beef|pork|fish|seafood|sausage/], ['Dairy & Eggs', /dair|milk|cheese|yogurt|eggs|butter/], ['Produce', /fresh-vegetables|fresh-fruits|^en:fruits$|^en:vegetables$|salads/], ['Grains & Bread', /bread|cereals|pasta|rice|flour|tortilla|grains/], ['Spices & Oils', /oils|spices|condiments|vinegar/], ['Canned & Dry', /canned|beans|soups|sauces|snacks|nuts|spreads|sweeteners|coffee|tea/]];
+function offToFood(p, code){
+  const n = p.nutriments || {};
+  const g = (k, m = 1) => n[k + '_100g'] != null ? num(n[k + '_100g']) * m : 0;
+  const kcal = n['energy-kcal_100g'] != null ? num(n['energy-kcal_100g']) : (n['energy_100g'] != null ? num(n['energy_100g']) / 4.184 : null);
+  const per100 = {calories: kcal || 0, protein: g('proteins'), carbs: g('carbohydrates'), fat: g('fat'), fiber: g('fiber'), sugar: g('sugars'), sodium: g('sodium', 1000), cholesterol: g('cholesterol', 1000), potassium: g('potassium', 1000), calcium: g('calcium', 1000), iron: g('iron', 1000), vitA: g('vitamin-a', 1e6), vitC: g('vitamin-c', 1000), vitD: g('vitamin-d', 1e6)};
+  for(const k in per100) per100[k] = r1(per100[k]);
+  const brand = String(p.brands || '').split(',')[0].trim();
+  let pname = String(p.product_name_en || p.product_name || '').trim();
+  if(!pname) return null;
+  const name = brand && !pname.toLowerCase().startsWith(brand.toLowerCase()) ? `${brand} ${pname}` : pname;
+  const pu = String(p.product_quantity_unit || 'g').toLowerCase(), pq = num(p.product_quantity);
+  const pkg = pq > 0 && (pu === 'g' || pu === 'ml') ? {qty: r1(pq), unit: pu} : null;
+  const servingG = num(p.serving_quantity) > 0 ? r1(p.serving_quantity) : null;
+  const tags = (p.categories_tags || []).join(' ');
+  const cat = (OFF_CATS.find(([, re]) => re.test(tags)) || [guessCat(name)])[0];
+  return {id: 'upc-' + codeKey(code), upc: String(code), name, brand, source: 'brand', per100, servingG, servingText: String(p.serving_size || '').toLowerCase(), gPerMl: 1, gPerPc: pkg && pkg.unit === 'g' ? pkg.qty : servingG, pkg, image: p.image_front_small_url || '', quantityText: p.quantity || '', hasNutrition: kcal != null, category: cat, addedOn: today()};
+}
+async function lookupBarcode(code){
+  const k = codeKey(code);
+  const mine = list('foods').find(f => f.upc && codeKey(f.upc) === k);
+  if(mine) return {...mine, hasNutrition: true};
+  try{
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=code,product_name,product_name_en,brands,quantity,product_quantity,product_quantity_unit,serving_size,serving_quantity,image_front_small_url,nutriments,categories_tags`);
+    if(r.ok){ const j = await r.json(); if(j.status === 1 && j.product){ const f = offToFood(j.product, code); if(f) return f; } }
+  }catch(e){}
+  try{
+    for(const q of [k.padStart(14, '0'), k.padStart(12, '0')]){
+      const hit = (await fdcQuery(q, 'Branded', 3, true)).find(f => codeKey(f.upc) === k);
+      if(hit) return {...hit, id: 'upc-' + k, upc: String(code), hasNutrition: true, category: guessCat(hit.name)};
+    }
+  }catch(e){}
+  return null;
+}
+function ensureBcOverlay(){
+  let el = document.getElementById('bcoverlay');
+  if(el) return el;
+  el = document.createElement('div'); el.id = 'bcoverlay'; el.className = 'bc'; el.hidden = true;
+  el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Barcode scanner');
+  el.innerHTML = `<video id="bcvideo" playsinline muted autoplay></video>
+    <div class="bc-frame" aria-hidden="true"><i></i></div>
+    <div class="bc-top">
+      <button class="bc-btn" data-act="bcClose">Done</button>
+      <div class="seg bc-dest" id="bcdest"></div>
+    </div>
+    <div class="bc-hint" id="bchint">Point the camera at a barcode</div>
+    <div class="bc-tally" id="bctally"></div>
+    <div class="bc-sheet" id="bcsheet" hidden></div>`;
+  document.body.appendChild(el);
+  return el;
+}
+function bcHint(text){ const h = document.getElementById('bchint'); if(h) h.textContent = text; }
+function renderBcTop(){
+  document.getElementById('bcdest').innerHTML = [['pantry', 'Add to pantry'], ['list', 'Add to shopping list']].map(([v, l]) => `<button class="${bc.dest === v ? 'on' : ''}" data-act="bcDest" data-v="${v}" aria-pressed="${bc.dest === v}">${l}</button>`).join('');
+  const t = document.getElementById('bctally');
+  t.innerHTML = bc.added.length ? `<b>${bc.added.length} added</b> · ${bc.added.slice(-3).reverse().map(esc).join(' · ')}` : '';
+  t.hidden = !bc.added.length;
+}
+function bcBeep(){
+  try{
+    navigator.vibrate && navigator.vibrate(60);
+    const a = bc.audio; if(!a) return;
+    const o = a.createOscillator(), g = a.createGain();
+    o.frequency.value = 1320; g.gain.setValueAtTime(0.08, a.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.12);
+    o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + 0.13);
+  }catch(e){}
+}
+async function openBarcode(){
+  const el = ensureBcOverlay();
+  el.hidden = false; document.documentElement.classList.add('bc-open');
+  bc.added = []; bc.item = null; bc.paused = false; bc.last = '';
+  try{ bc.audio = bc.audio || new (window.AudioContext || window.webkitAudioContext)(); bc.audio.resume && bc.audio.resume(); }catch(e){}
+  renderBcTop(); renderBcSheet();
+  bcHint('Starting the camera…');
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('nocam');
+    bc.stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 1280}, height: {ideal: 720}}, audio: false});
+    if(el.hidden){ stopBcCamera(); return; }
+    const v = document.getElementById('bcvideo'); v.srcObject = bc.stream; await v.play().catch(() => {});
+    bcHint('Getting the barcode reader ready…');
+    bc.det = bc.det || await getDetector();
+    bcHint('Point the camera at a barcode');
+    bcLoop();
+  }catch(e){
+    stopBcCamera();
+    bc.item = {stage: 'nocam', reason: e && e.name === 'NotAllowedError' ? 'denied' : 'none'};
+    bcHint(''); renderBcSheet();
+  }
+}
+function bcLoop(){
+  clearTimeout(bc.timer);
+  bc.timer = setTimeout(async () => {
+    const v = document.getElementById('bcvideo');
+    if(!bc.stream || !v) return;
+    if(!bc.paused && !bc.busy && v.readyState >= 2){
+      bc.busy = true;
+      try{
+        const codes = await bc.det.detect(v);
+        const c = codes && codes[0] && codes[0].rawValue;
+        if(c && /^\d{8,14}$/.test(c) && (c !== bc.last || Date.now() - bc.lastAt > 5000)){ bc.last = c; bc.lastAt = Date.now(); onBarcode(c); }
+      }catch(e){}
+      bc.busy = false;
+    }
+    bcLoop();
+  }, 140);
+}
+function stopBcCamera(){
+  clearTimeout(bc.timer);
+  if(bc.stream){ bc.stream.getTracks().forEach(t => t.stop()); bc.stream = null; }
+  const v = document.getElementById('bcvideo'); if(v) v.srcObject = null;
+}
+function closeBarcode(){
+  stopBcCamera(); closeSuggest();
+  const el = document.getElementById('bcoverlay'); if(el) el.hidden = true;
+  document.documentElement.classList.remove('bc-open');
+  if(bc.added.length) toast(`Added ${bc.added.length} scanned item${bc.added.length === 1 ? '' : 's'} to your ${bc.dest === 'list' ? 'shopping list' : 'pantry'}.`);
+  render();
+}
+async function onBarcode(code){
+  bc.paused = true; bcBeep();
+  bc.item = {stage: 'looking', code}; renderBcSheet(); bcHint('');
+  const food = await lookupBarcode(code);
+  if(!bc.item || bc.item.code !== code) return;
+  if(food){
+    const amt = food.pkg ? {qty: String(food.pkg.qty), unit: food.pkg.unit} : {qty: '1', unit: 'pc'};
+    bc.item = {stage: 'found', code, food, name: food.name, qty: amt.qty, unit: amt.unit, base: amt, category: food.category || guessCat(food.name)};
+  } else {
+    bc.item = {stage: 'unknown', code, name: '', qty: '1', unit: 'pc', base: {qty: '1', unit: 'pc'}, category: 'Other'};
+  }
+  ui.bcItem = bc.item;
+  renderBcSheet();
+}
+function renderBcSheet(){
+  const sh = document.getElementById('bcsheet'), it = bc.item;
+  if(!sh) return;
+  if(!it){ sh.hidden = true; return; }
+  sh.hidden = false;
+  const dest = bc.dest === 'list' ? 'shopping list' : 'pantry';
+  if(it.stage === 'nocam'){
+    sh.innerHTML = `<h2>${it.reason === 'denied' ? 'Camera access is off' : 'No camera available'}</h2>
+      <p class="small muted">${it.reason === 'denied' ? 'Allow camera access for Prep Kitchen in your browser or phone settings, then try again. Or use one of these instead:' : 'You can still add products by barcode:'}</p>
+      <div class="row end"><label class="f" style="flex:1 1 160px">Barcode number<input id="f-bc-manual" inputmode="numeric" placeholder="e.g. 049000028911" autocomplete="off"></label><button class="btn primary" data-act="bcManual">Look up</button></div>
+      <div class="row"><label class="btn" for="bc-photo">Read a barcode from a photo</label><input id="bc-photo" type="file" accept="image/*" data-change="bcPhoto" hidden></div>`;
+    return;
+  }
+  if(it.stage === 'looking'){ sh.innerHTML = `<div class="row"><span class="spin" aria-hidden="true"></span><b>Looking up ${esc(it.code)}…</b></div>`; return; }
+  const f = it.food, P = f && f.per100, sv = f && f.servingG;
+  sh.innerHTML = `
+    <div class="bc-prod">
+      ${f && f.image ? `<img src="${esc(f.image)}" alt="" class="bc-img">` : ''}
+      <div class="stack" style="gap:4px;min-width:0;flex:1">
+        ${it.stage === 'unknown' ? `<b>No product found for ${esc(it.code)}</b><p class="small muted">Type what it is. Prep Kitchen will remember this barcode for next time.</p>` : `<span class="eyebrow">${f.quantityText ? esc(f.quantityText) : 'Found it'}</span>`}
+        <input id="f-bcItem-name" value="${esc(it.name)}" data-bind="bcItem.name" data-norender data-food="bc" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggest" aria-label="Product name" placeholder="Product name">
+        ${f && f.hasNutrition ? `<span class="small muted">${sv ? `Per serving (${esc(f.servingText || fq(sv) + ' g')}): ${fk(P.calories * sv / 100)} kcal · ${r1(P.protein * sv / 100)} g protein · ${r1(P.carbs * sv / 100)} g carbs · ${r1(P.fat * sv / 100)} g fat` : `Per 100 g: ${fk(P.calories)} kcal · ${r1(P.protein)} g protein · ${r1(P.carbs)} g carbs · ${r1(P.fat)} g fat`}</span>` : (f ? '<span class="small muted">No nutrition listed for this product.</span>' : '')}
+      </div>
+    </div>
+    <div class="row end">
+      <label class="f">Amount<input id="f-bcItem-qty" class="w-num" type="number" step="any" min="0" value="${esc(it.qty)}" data-bind="bcItem.qty" data-norender></label>
+      <label class="f">Unit<select id="f-bcItem-unit" class="w-unit" data-bind="bcItem.unit" data-norender>${opts(UNIT_LIST, it.unit)}</select></label>
+      <button class="btn" data-act="bcMore">+1 more</button>
+    </div>
+    <div class="row">
+      <button class="btn primary" data-act="bcAdd">Add to ${dest}</button>
+      <button class="btn ghost" data-act="bcSkip">Skip</button>
+    </div>`;
+}
+document.addEventListener('keydown', ev => {
+  const el = document.getElementById('bcoverlay');
+  if(ev.key === 'Escape' && el && !el.hidden && !(suggest.input && !suggest.el.hidden)) closeBarcode();
+});
+function bcResume(){ bc.item = null; ui.bcItem = null; renderBcSheet(); renderBcTop(); bc.paused = false; bcHint(bc.stream ? 'Point the camera at the next barcode' : ''); if(!bc.stream){ bc.item = {stage: 'nocam', reason: 'none'}; renderBcSheet(); } }
+
 /* ---------- rendering ---------- */
 const $main = document.getElementById('main');
 function renderSave(){
@@ -1945,7 +2160,7 @@ function viewPantry(){
   return `
   <div class="pagehead">
     <div><h1>Pantry</h1><p class="sub">Everything in your kitchen and how much is left. Logged groceries add to it, cooking a prep takes from it, and you can correct any amount by hand.</p></div>
-    <div class="row" style="gap:18px;align-items:flex-end"><button class="btn primary" data-act="scanOpen">Scan a receipt</button>
+    <div class="row" style="gap:18px;align-items:flex-end"><div class="row"><button class="btn primary" data-act="bcOpen">Scan barcodes</button><button class="btn" data-act="scanOpen">Scan a receipt</button></div>
     <div class="statrow">
       <div class="stat"><b>${all.length}</b><span>Items</span></div>
       <div class="stat"><b style="color:var(--warn)">${lowN}</b><span>Running low</span></div>
@@ -2358,7 +2573,7 @@ function viewGroceries(){
         <p class="small muted" style="margin-top:10px">Tick items as you shop, then put them in the pantry in one go.</p>
       </div>
       <div class="card">
-        <div class="cardhead"><h2>Log a purchase</h2><button class="btn sm primary" data-act="scanOpen">Scan a receipt</button></div>
+        <div class="cardhead"><h2>Log a purchase</h2><div class="row"><button class="btn sm primary" data-act="bcOpen">Scan barcodes</button><button class="btn sm" data-act="scanOpen">Scan a receipt</button></div></div>
         <p class="small muted" style="margin-bottom:10px">Bought something that wasn't on the list? Add it straight to your pantry. If an item with the same name exists, the amount is added to it.</p>
         <datalist id="gnames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
         <div class="row end">
@@ -2387,6 +2602,48 @@ function cookPrep(id){
 }
 
 const ACT = {
+  bcOpen: () => { openBarcode(); },
+  bcClose: () => closeBarcode(),
+  bcDest: el => { bc.dest = el.dataset.v; lsSet('pk-bc-dest', bc.dest); renderBcTop(); renderBcSheet(); },
+  bcSkip: () => bcResume(),
+  bcMore: () => {
+    const it = bc.item; if(!it) return;
+    const b = it.base, add = it.unit === b.unit ? num(b.qty) : conv(num(b.qty), b.unit, it.unit);
+    if(add == null){ toast('Switch the unit back to add another package.'); return; }
+    it.qty = String(Math.round((num(it.qty) + add) * 100) / 100);
+    const q = document.getElementById('f-bcItem-qty'); if(q) q.value = it.qty;
+  },
+  bcManual: async () => {
+    const v = (document.getElementById('f-bc-manual') || {}).value || '';
+    const code = v.replace(/\D/g, '');
+    if(code.length < 8){ toast('Enter the full number under the barcode (8 to 14 digits).'); return; }
+    await onBarcode(code);
+  },
+  bcAdd: () => {
+    const it = bc.item; if(!it) return;
+    const name = String(it.name || '').trim(), qty = num(it.qty);
+    if(!name){ toast('Give the product a name first.'); return; }
+    if(!(qty > 0)){ toast('Enter how much you have.'); return; }
+    // Remember the product (and its barcode) in this person's foods.
+    let foodId = it.foodId || null;
+    if(it.food && !foodId){
+      const {id, hasNutrition, image, quantityText, pkg, category, ...doc} = it.food;
+      foodId = id; put('foods', id, {...doc, name, upc: it.code});
+    } else if(!it.food && !foodId){
+      foodId = 'upc-' + codeKey(it.code);
+      put('foods', foodId, {name, upc: it.code, aliases: [], per100: Object.fromEntries(NUTR.map(([k]) => [k, 0])), gPerMl: 1, gPerPc: null, source: 'manual', addedOn: today()});
+    } else if(foodId && S.foods[foodId] && !S.foods[foodId].upc){
+      patch('foods', foodId, {upc: it.code});
+    }
+    if(bc.dest === 'list'){ addToList(name, qty, it.unit); }
+    else {
+      const m = list('pantry').find(p => p.foodId && p.foodId === foodId && conv(1, it.unit, p.unit) !== null) || scanPantryMatch(name, it.unit);
+      if(m) patch('pantry', m.id, {qty: Math.round((num(m.qty) + conv(qty, it.unit, m.unit)) * 1000) / 1000});
+      else put('pantry', uid('p'), {name, qty, unit: it.unit, category: it.category || guessCat(name), lowAt: null, foodId});
+    }
+    bc.added.push(`${name} (${fq(qty)} ${it.unit})`);
+    bcResume();
+  },
   scanOpen: () => { ui.scanFrom = ui.tab === 'scan' ? (ui.scanFrom || 'pantry') : ui.tab; ui.scan = {stage: 'pick'}; ui.tab = 'scan'; window.scrollTo(0, 0); },
   scanClose: () => { if(ui.scan && ui.scan.imgUrl) URL.revokeObjectURL(ui.scan.imgUrl); ui.scan = null; ui.tab = ui.scanFrom || 'pantry'; window.scrollTo(0, 0); },
   scanCancel: () => { ui.scan = {stage: 'pick'}; },
@@ -2595,6 +2852,17 @@ const CHANGE = {
     patch('pantry', el.dataset.id, {unit: el.value, qty: c === null ? num(p.qty) : Math.round(c*1000)/1000, lowAt: p.lowAt == null || p.lowAt === '' ? null : (lc === null ? num(p.lowAt) : Math.round(lc*1000)/1000)}); },
   plow: el => patch('pantry', el.dataset.id, {lowAt: el.value === '' ? null : num(el.value)}),
   shopCheck: el => patch('shopping', el.dataset.id, {checked: el.checked}),
+  bcPhoto: async el => {
+    const file = el.files && el.files[0]; el.value = '';
+    if(!file) return;
+    try{
+      bc.det = bc.det || await getDetector();
+      const bmp = await createImageBitmap(file);
+      const codes = await bc.det.detect(bmp);
+      const c = codes && codes[0] && codes[0].rawValue;
+      if(c) await onBarcode(c); else toast("Couldn't find a barcode in that photo. Try a closer, sharper shot.");
+    }catch(e){ toast("Couldn't read that photo. Check your connection and try again."); }
+  },
   scanFile: el => {
     const file = el.files && el.files[0]; el.value = '';
     if(!file) return;
