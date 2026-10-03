@@ -428,6 +428,23 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .sg-note{font-size:13px;color:var(--ink-2);padding:10px}
 .sg-foot{font-size:11px;color:var(--ink-2);padding:6px 10px 2px;border-top:1px solid var(--line);margin-top:4px}
 .labelform{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px}
+.scanpick{max-width:520px}
+.scanpick .btn.big{text-align:center}
+.scanread{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.scanimg{width:140px;max-height:260px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.scanlist{display:flex;flex-direction:column}
+.scanrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.scanrow:first-child{border-top:0}
+.scanrow.off{opacity:.45}
+.scanrow > input[type=checkbox]{margin-top:9px}
+.scanmain{display:flex;flex-direction:column;gap:4px;min-width:0}
+.scanmain input{width:100%}
+.scanmeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.scanraw{font:12px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.scanqty{display:flex;gap:6px;align-items:center}
+.scanprice{font-size:13px;color:var(--ink-2);width:58px;text-align:right}
+@media (max-width:620px){.scanrow{grid-template-columns:auto minmax(0,1fr)}.scanqty{grid-column:2}}
+.rawtext{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;font:12.5px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;max-height:360px;overflow:auto;margin:0}
 .welcome{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 </style>
 </head>
@@ -679,7 +696,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.09.27.1610';
+const APP_VERSION = '2026.10.03.1621';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }
@@ -1340,6 +1357,11 @@ function pickFood(n){
     if(!S.foods[id]) put('foods', id, doc);
   }
   const name = f.name;
+  if(kind.startsWith('scan:')){
+    const it = ui.scan && ui.scan.items[+kind.slice(5)];
+    if(it){ it.name = name; it.foodId = f.id; it.cat = guessCat(name); }
+    render(); return;
+  }
   if(kind.startsWith('recipe:')){
     const ing = ui.rEdit && ui.rEdit.ingredients[+kind.slice(7)];
     if(ing){
@@ -1375,6 +1397,142 @@ document.addEventListener('keydown', ev => {
 document.addEventListener('focusout', ev => { if(ev.target.id && ev.target.id === suggest.input) setTimeout(() => { if(document.activeElement && document.activeElement.id === suggest.input) return; closeSuggest(); }, 120); });
 window.addEventListener('resize', () => { if(suggest.input) placeSuggest(); });
 window.addEventListener('scroll', () => { if(suggest.input) placeSuggest(); }, true);
+
+/* ---------- receipt scanner (on-device text reading with Tesseract.js) ---------- */
+const TESS_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js';
+function loadScript(src){
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('load')); document.head.appendChild(s); });
+}
+// Shrink big photos, enlarge tiny ones, convert to grayscale and stretch the contrast so faded
+// thermal-paper print reads better.
+async function prepImage(file){
+  let bmp;
+  try{ bmp = await createImageBitmap(file, {imageOrientation: 'from-image'}); }catch(e){ bmp = await createImageBitmap(file); }
+  const long = Math.max(bmp.width, bmp.height);
+  const sc = long > 2400 ? 2400 / long : (long < 1400 ? 1400 / long : 1);
+  const w = Math.round(bmp.width * sc), h = Math.round(bmp.height * sc);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const c = cv.getContext('2d', {willReadFrequently: true});
+  c.drawImage(bmp, 0, 0, w, h);
+  const img = c.getImageData(0, 0, w, h), d = img.data, hist = new Uint32Array(256);
+  for(let i = 0; i < d.length; i += 4){ const g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0; d[i] = d[i + 1] = d[i + 2] = g; hist[g]++; }
+  const total = w * h; let lo = 0, hi = 255, acc = 0;
+  for(let v = 0; v < 256; v++){ acc += hist[v]; if(acc > total * 0.02){ lo = v; break; } }
+  acc = 0;
+  for(let v = 255; v >= 0; v--){ acc += hist[v]; if(acc > total * 0.02){ hi = v; break; } }
+  const span = Math.max(1, hi - lo);
+  for(let i = 0; i < d.length; i += 4){ const g = Math.max(0, Math.min(255, (d[i] - lo) * 255 / span)); d[i] = d[i + 1] = d[i + 2] = g; }
+  c.putImageData(img, 0, 0);
+  return cv;
+}
+// Common receipt shorthand. Keys are uppercase receipt words; brand names keep their capitals.
+const RECEIPT_WORDS = {
+  GV:'Great Value', KS:'Kirkland Signature', KIRK:'Kirkland', MKT:'Market', PNTRY:'Pantry', MP:'Market Pantry', GG:'Good & Gather', '365':'365', HEB:'H-E-B', TJ:'Trader Joe\'s', TJS:'Trader Joe\'s', SIMPLY:'Simply', PL:'', STR:'',
+  CHKN:'chicken', CHK:'chicken', CHIC:'chicken', BRST:'breast', BRS:'breast', BRT:'breast', THGH:'thigh', THGHS:'thighs', THG:'thigh', WNGS:'wings', DRMSTK:'drumstick', BNLS:'boneless', BNLESS:'boneless', SKNLS:'skinless', SKLS:'skinless', B:'', S:'',
+  GRND:'ground', GRD:'ground', GR:'ground', TRKY:'turkey', TKY:'turkey', TRK:'turkey', BF:'beef', BEEF:'beef', PRK:'pork', STK:'steak', SRLN:'sirloin', SLMN:'salmon', SALMN:'salmon', SHRMP:'shrimp', SHRP:'shrimp', TUN:'tuna', BCN:'bacon', SAUS:'sausage', SSG:'sausage', HM:'ham', DELI:'deli', FLT:'fillet', FLTS:'fillets',
+  MLK:'milk', MILK:'milk', WHL:'whole', WHT:'white', CHS:'cheese', CHSE:'cheese', CHDR:'cheddar', CHED:'cheddar', SHRD:'shredded', SHR:'shredded', MOZZ:'mozzarella', MOZ:'mozzarella', PARM:'parmesan', YGRT:'yogurt', YOG:'yogurt', YGT:'yogurt', YOGRT:'yogurt', GRK:'Greek', GRC:'Greek', BTR:'butter', BUTR:'butter', CRM:'cream', SR:'sour', HVY:'heavy', WHP:'whipping', CTG:'cottage', COTT:'cottage', LG:'large', LRG:'large', MED:'medium', SM:'small', XL:'extra large', DZ:'dozen', EGG:'eggs', EGGS:'eggs',
+  BAN:'bananas', BANAN:'bananas', BNNA:'bananas', APL:'apples', APPL:'apples', ORG:'organic', ORGN:'organic', ORNG:'orange', ORGE:'orange', TOM:'tomatoes', TOMS:'tomatoes', TMTO:'tomato', POT:'potatoes', POTS:'potatoes', POTATO:'potatoes', SWT:'sweet', ONIN:'onion', ONI:'onion', ONIO:'onion', YLW:'yellow', YEL:'yellow', RD:'red', GRN:'green', GRLC:'garlic', GRLIC:'garlic', PPR:'pepper', PEPR:'pepper', BELL:'bell', LTTC:'lettuce', LETT:'lettuce', ROM:'romaine', ROMN:'romaine', SPNCH:'spinach', SPIN:'spinach', BROC:'broccoli', BRCLI:'broccoli', BROCC:'broccoli', CAUL:'cauliflower', CAULI:'cauliflower', CRT:'carrots', CARR:'carrots', CRRT:'carrots', CEL:'celery', CUC:'cucumber', CUKE:'cucumber', ZUCC:'zucchini', MUSH:'mushrooms', MSHRM:'mushrooms', AVO:'avocado', AVOC:'avocado', AVOCADO:'avocado', LMN:'lemon', LIM:'lime', BLUBRY:'blueberries', BLUEB:'blueberries', BLBRY:'blueberries', STRWB:'strawberries', STRAWB:'strawberries', STRW:'strawberries', RASP:'raspberries', GRAPE:'grapes', GRPS:'grapes', CILAN:'cilantro', CLNTRO:'cilantro', PRSLY:'parsley', JLPN:'jalapeno', GNGR:'ginger', SALAD:'salad', SLD:'salad', VEG:'vegetables', VEGS:'vegetables', FRT:'fruit', FRZ:'frozen', FRZN:'frozen', FROZ:'frozen',
+  BRD:'bread', BRED:'bread', WW:'whole wheat', WHWT:'whole wheat', BGL:'bagels', BAGL:'bagels', TORT:'tortillas', TORTL:'tortillas', FLR:'flour', RCE:'rice', JSMN:'jasmine', JASM:'jasmine', BSMT:'basmati', BRN:'brown', PST:'pasta', PSTA:'pasta', SPAG:'spaghetti', SPGTI:'spaghetti', PENN:'penne', NDL:'noodles', NDLS:'noodles', OAT:'oats', OATS:'oats', OATML:'oatmeal', CRL:'cereal', GRNLA:'granola', CRKR:'crackers', CRKRS:'crackers',
+  BNS:'beans', BN:'beans', BLK:'black', KDNY:'kidney', PNTO:'pinto', CHKPEA:'chickpeas', GARB:'garbanzo', SAUC:'sauce', SCE:'sauce', SC:'sauce', MRNRA:'marinara', SLSA:'salsa', SOUP:'soup', BRTH:'broth', BROTH:'broth', STCK:'stock', DCD:'diced', DICED:'diced', CRSHD:'crushed', CND:'canned', PNT:'peanut', PB:'peanut butter', ALM:'almond', ALMD:'almond', ALMND:'almond', CSHW:'cashews', WLNT:'walnuts', HNY:'honey', SGR:'sugar', SYRP:'syrup', MPL:'maple', OLV:'olive', OIL:'oil', EVOO:'extra virgin olive oil', VEGOIL:'vegetable oil', CNOLA:'canola', VNGR:'vinegar', SOY:'soy', KETCH:'ketchup', MUST:'mustard', MAYO:'mayonnaise', DRSG:'dressing', DRS:'dressing', RNCH:'ranch', SEAS:'seasoning', SSNG:'seasoning', SLT:'salt', SPC:'spice',
+  CHPS:'chips', CHP:'chips', TORTCHP:'tortilla chips', COF:'coffee', COFF:'coffee', JCE:'juice', JC:'juice', OJ:'orange juice', WTR:'water', SPRK:'sparkling', SDA:'soda', CHOC:'chocolate', CKIE:'cookies', CKIES:'cookies', ICE:'ice', ICECRM:'ice cream', PZZA:'pizza', PIZ:'pizza',
+  FF:'fat free', RF:'reduced fat', LF:'low fat', NF:'nonfat', LS:'low sodium', UNSW:'unsweetened', UNSWT:'unsweetened', VAN:'vanilla', VANL:'vanilla', STRWBRY:'strawberry', PLN:'plain', NAT:'natural', FRSH:'fresh', FR:'fresh', BABY:'baby', MINI:'mini',
+  PK:'', PKG:'', CT:'', EA:'', BTL:'', BG:'', BAG:'', CN:'', JR:'', BX:'', BOX:'', TRY:'', TRAY:'', VP:'', FP:'', CF:''
+};
+const SKIP_LINE = /\b(sub\s*-?\s*total|subtotal|total|tax|change\s+due|change|cash|visa|mastercard|master\s*card|amex|discover|debit|credit|card\s*#|balance|tender|payment|paid|auth|approv|ref\s*#|trans|transaction|receipt|thank|store\s*#|manager|cashier|register|phone|tel|www\.|\.com|savings|you\s+saved|saved|coupon|discount|member|rewards|points|bottle\s*dep|deposit|items?\s+sold|item\s+count|#\s*of\s+items|signature|account|chip\s*read|contactless|terminal|survey|feedback|return|policy|refund|void|tc\s*#|st\s*#|op\s*#|te\s*#|tr\s*#|aid|mid|tid|seq|batch|invoice|order\s*#|welcome|hours|open\s+\d|price\s+you\s+pay|regular\s+price|bal\b)\b/i;
+const SIZE_RE = /(\d+(?:\.\d+)?)\s*(fl\.?\s?oz|oz|lbs?|kg|g|ml|ltr|l|gal|ct|pk|dz|doz)\b/i;
+function sizeToQty(n, u){
+  u = u.toLowerCase().replace(/[.\s]/g, '');
+  const map = {floz:[29.574, 'ml'], oz:[1, 'oz'], lb:[1, 'lb'], lbs:[1, 'lb'], kg:[1, 'kg'], g:[1, 'g'], ml:[1, 'ml'], l:[1, 'l'], ltr:[1, 'l'], gal:[3.785, 'l'], ct:[1, 'pc'], pk:[1, 'pc'], dz:[12, 'pc'], doz:[12, 'pc']};
+  const m = map[u]; if(!m) return null;
+  return {qty: Math.round(num(n) * m[0] * 100) / 100, unit: m[1]};
+}
+function expandReceiptName(raw){
+  const words = raw.toUpperCase().replace(/[^A-Z0-9&%' ]+/g, ' ').split(/\s+/).filter(Boolean);
+  const out = [];
+  for(const w of words){
+    if(/^\d+$/.test(w) && w.length >= 4) continue;           // item codes
+    if(Object.prototype.hasOwnProperty.call(RECEIPT_WORDS, w)){ if(RECEIPT_WORDS[w]) out.push(RECEIPT_WORDS[w]); continue; }
+    out.push(w.length <= 2 && !/\d/.test(w) ? w : w.toLowerCase());
+  }
+  let s = out.join(' ').replace(/\s+/g, ' ').trim();
+  // Brands stay capitalized; everything else reads as a sentence.
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+}
+const CAT_WORDS = [
+  ['Frozen', /\bfrozen\b|\bice cream\b|\bpizza\b/],
+  ['Meat & Fish', /chicken|beef|turkey|pork|\bham\b|bacon|sausage|steak|sirloin|salmon|tuna|shrimp|\bfish\b|\bcod\b|tilapia/],
+  ['Dairy & Eggs', /\bmilk\b|cheese|cheddar|mozzarella|parmesan|yogurt|butter(?! ?nut)|\beggs?\b|\bcream\b/],
+  ['Produce', /banana|apple|orange(?! juice)|lemon|\blime|avocado|tomato(?!es? (sauce|paste))|potato|onion|garlic|bell pepper|lettuce|romaine|spinach|kale|broccoli|cauliflower|carrot|celery|cucumber|zucchini|mushroom|berr|grape|melon|pineapple|mango|cilantro|parsley|ginger|jalapeno|cabbage|asparagus|squash|salad|vegetables|fruit|produce/],
+  ['Grains & Bread', /bread|bagel|tortilla(?! chips)|\brice\b|pasta|spaghetti|penne|noodle|\boats?\b|oatmeal|cereal|granola|flour|cracker|\bbuns?\b|\brolls?\b/],
+  ['Spices & Oils', /\boil\b|vinegar|\bsalt\b|seasoning|spice|cumin|paprika|cinnamon/],
+  ['Canned & Dry', /beans|chickpea|garbanzo|soup|broth|stock|sauce|salsa|marinara|canned|diced|crushed|peanut|almond|cashew|walnut|honey|sugar|syrup|coffee|\btea\b|chips|ketchup|mustard|mayonnaise|dressing/]
+];
+function guessCat(name){ const n = name.toLowerCase(); const hit = CAT_WORDS.find(([, re]) => re.test(n)); return hit ? hit[0] : 'Other'; }
+function parseReceipt(text){
+  const items = [];
+  const lines = String(text || '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  for(let line of lines){
+    // Fix common misreads inside prices: 9.9O -> 9.90, 4,99 -> 4.99.
+    line = line.replace(/(\d)[oO](?=\D|$)/g, '$10').replace(/(\d),(\d{2})(?!\d)/g, '$1.$2');
+    const prev = items[items.length - 1];
+    const weight = line.match(/(\d+(?:\.\d+)?)\s*(lbs?|kg)\s*@/i);
+    const letters = (line.match(/[a-z]/gi) || []).length;
+    // "2.31 lb @ 1.99 /lb" or "2 @ 3.49" on its own line belongs to the item above.
+    if(prev && weight && letters <= 6){ const q = sizeToQty(weight[1], weight[2]); if(q){ prev.qty = String(q.qty); prev.unit = q.unit; } continue; }
+    const each = line.match(/^(\d{1,2})\s*(?:@|x|×)\s*\$?\d/i);
+    if(prev && each && letters <= 4){ prev.qty = each[1]; prev.unit = 'pc'; continue; }
+    const pm = line.match(/^(.*?)[\s$]*(-?\d{1,4}\.\d{2})\s*(?:[A-Z]{1,2}|\*|[A-Z] [A-Z])?\s*$/i);
+    if(!pm) continue;
+    let rawName = pm[1], price = num(pm[2]);
+    if(price <= 0 || SKIP_LINE.test(line)) continue;
+    if((rawName.match(/[a-z]/gi) || []).length < 3) continue;
+    let qty = '1', unit = 'pc';
+    if(weight){ const q = sizeToQty(weight[1], weight[2]); if(q){ qty = String(q.qty); unit = q.unit; } rawName = rawName.replace(weight[0], ' ').replace(/@.*$/, ' '); }
+    else {
+      const sz = rawName.match(SIZE_RE);
+      if(sz){ const q = sizeToQty(sz[1], sz[2]); if(q){ qty = String(q.qty); unit = q.unit; } rawName = rawName.replace(sz[0], ' '); }
+    }
+    const name = expandReceiptName(rawName);
+    if(!name || name.replace(/[^a-z]/gi, '').length < 3) continue;
+    items.push({on: true, name, qty, unit, price, raw: line, cat: guessCat(name)});
+  }
+  return items;
+}
+function scanPantryMatch(name, unit){
+  return list('pantry').find(p => (pantryMatches(name, p.name) || pantryMatches(p.name, name)) && conv(1, unit, p.unit) !== null) || null;
+}
+const SCAN_STEPS = {'loading tesseract core':'Getting the text reader ready (first time only)…', 'initializing tesseract':'Getting the text reader ready…', 'loading language traineddata':'Downloading English text data (first time only)…', 'initializing api':'Getting the text reader ready…', 'recognizing text':'Reading your receipt…'};
+async function runScan(file){
+  const s = ui.scan;
+  try{
+    s.status = 'Preparing the photo…'; updateScanProgress();
+    const canvas = await prepImage(file);
+    if(!window.Tesseract) await loadScript(TESS_SRC);
+    const worker = await Tesseract.createWorker('eng', 1, {logger: m => {
+      if(ui.scan !== s) return;
+      s.status = SCAN_STEPS[m.status] || s.status;
+      s.progress = m.status === 'recognizing text' ? m.progress : Math.min(0.15, (s.progress || 0) + 0.01);
+      updateScanProgress();
+    }});
+    await worker.setParameters({tessedit_pageseg_mode: '4', preserve_interword_spaces: '1'});
+    const {data} = await worker.recognize(canvas);
+    await worker.terminate();
+    if(ui.scan !== s) return;
+    s.raw = data.text || ''; s.conf = Math.round(num(data.confidence));
+    s.items = parseReceipt(s.raw);
+    s.stage = 'review';
+  }catch(e){
+    if(ui.scan !== s) return;
+    s.stage = 'error';
+    s.err = e && e.message === 'load' ? 'The text reader couldn’t download. Check your internet connection and try again.' : 'That photo couldn’t be read. Try a sharper photo in good light.';
+  }
+  render();
+}
+function updateScanProgress(){
+  const s = ui.scan, bar = document.getElementById('scanbar'), st = document.getElementById('scanstatus');
+  if(bar) bar.style.width = Math.round((s.progress || 0) * 100) + '%';
+  if(st) st.textContent = s.status + (s.progress > 0.16 ? ` ${Math.round(s.progress * 100)}%` : '');
+}
 
 /* ---------- rendering ---------- */
 const $main = document.getElementById('main');
@@ -1420,7 +1578,7 @@ function render(){
   if(loaded.size < COLS.length) html = mode === 'off' ? offNote : `<div class="empty">Loading your kitchen…</div>`;
   else {
     if(mode === 'off') html += offNote;
-    html += ({today:viewToday, pantry:viewPantry, recipes:viewRecipes, planner:viewPlanner, fridge:viewFridge, groceries:viewGroceries, alerts:viewAlerts, settings:viewSettings, account:viewSettings})[ui.tab]();
+    html += ({today:viewToday, pantry:viewPantry, recipes:viewRecipes, planner:viewPlanner, fridge:viewFridge, groceries:viewGroceries, alerts:viewAlerts, settings:viewSettings, account:viewSettings, scan:viewScan})[ui.tab]();
   }
   $main.innerHTML = html;
   if(fid){
@@ -1444,6 +1602,63 @@ function selField(label, bind, options, extra=''){
 }
 function checkField(label, bind){
   return `<label class="check"><input type="checkbox" id="f-${bind.replace(/\./g,'-')}" data-bind="${bind}" ${getPath(ui,bind)?'checked':''}>${label}</label>`;
+}
+
+/* ----- Receipt scan ----- */
+function viewScan(){
+  const s = ui.scan || (ui.scan = {stage: 'pick'});
+  const head = `<div class="pagehead"><div><h1>Scan a receipt</h1><p class="sub">Take a photo of your grocery receipt and Prep Kitchen will read the items so you can add them to your pantry. The text reader runs on this device, so your photo never leaves it.</p></div>
+    <button class="btn" data-act="scanClose">Back</button></div>`;
+  if(s.stage === 'pick') return head + `
+    <div class="card stack scanpick">
+      ${isPhone() ? `<label class="btn primary big" for="scan-camera">Take a photo</label><input id="scan-camera" type="file" accept="image/*" capture="environment" data-change="scanFile" hidden>` : ''}
+      <label class="btn ${isPhone() ? '' : 'primary '}big" for="scan-file">${isPhone() ? 'Choose from photos' : 'Choose a photo'}</label><input id="scan-file" type="file" accept="image/*" data-change="scanFile" hidden>
+      <div class="small muted"><b>For the best results:</b> lay the receipt flat, use good light, fit the whole receipt in the frame, and keep the text sharp. One receipt per photo. A very long receipt can be done in two photos.</div>
+    </div>`;
+  if(s.stage === 'reading') return head + `
+    <div class="card stack">
+      <div class="scanread">${s.imgUrl ? `<img src="${s.imgUrl}" alt="Your receipt" class="scanimg">` : ''}
+        <div class="stack" style="flex:1 1 220px">
+          <b id="scanstatus">${esc(s.status || 'Starting…')}</b>
+          <div class="gtrack" style="height:9px"><i id="scanbar" style="width:${Math.round((s.progress || 0) * 100)}%;background:var(--accent)"></i></div>
+          <p class="small muted">This usually takes 10–30 seconds. The first scan also downloads the text reader (a few MB), which is then saved for next time.</p>
+          <div><button class="btn sm ghost" data-act="scanCancel">Cancel</button></div>
+        </div>
+      </div>
+    </div>`;
+  if(s.stage === 'error') return head + `<div class="card stack"><p class="autherr">${esc(s.err)}</p><div class="row"><button class="btn primary" data-act="scanRestart">Try another photo</button></div></div>`;
+  const on = s.items.filter(i => i.on && i.name.trim());
+  const sum = on.reduce((a, i) => a + num(i.price), 0);
+  return head + `
+    <div class="card stack">
+      <div class="cardhead" style="margin-bottom:0"><h2>${s.items.length ? `Found ${s.items.length} item${s.items.length === 1 ? '' : 's'}` : 'No items found'}</h2>
+        <span class="pill ${s.conf >= 75 ? 'ok' : s.conf >= 55 ? 'warn' : 'bad'}" title="How sure the text reader is about the letters it read">Reading confidence ${s.conf}%</span></div>
+      <p class="small muted">Check each item, fix names and amounts, and untick anything that isn't food. Start typing in a name to pick the exact food. Items that match something already in your pantry are added to it.</p>
+      ${s.items.length ? `<div class="scanlist">${s.items.map((it, ix) => { const m = it.name.trim() && scanPantryMatch(it.name, it.unit); return `
+        <div class="scanrow${it.on ? '' : ' off'}">
+          <input type="checkbox" id="sc-on-${ix}" data-bind="scan.items.${ix}.on" ${it.on ? 'checked' : ''} aria-label="Include ${esc(it.name)}">
+          <div class="scanmain">
+            <input id="f-scan-items-${ix}-name" value="${esc(it.name)}" data-bind="scan.items.${ix}.name" data-norender data-food="scan:${ix}" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggest" aria-label="Item name">
+            <div class="scanmeta"><span class="scanraw" title="What the receipt said">“${esc(it.raw)}”</span>${m ? `<span class="pill acc">Adds to your ${esc(m.name)}</span>` : `<span class="pill">${esc(it.cat)}</span>`}</div>
+          </div>
+          <div class="scanqty">
+            <input id="f-scan-items-${ix}-qty" class="w-num" type="number" step="any" min="0" value="${esc(it.qty)}" data-bind="scan.items.${ix}.qty" data-norender aria-label="Amount">
+            <select id="f-scan-items-${ix}-unit" class="w-unit" data-bind="scan.items.${ix}.unit" aria-label="Unit">${opts(UNIT_LIST, it.unit)}</select>
+            <span class="scanprice">$${num(it.price).toFixed(2)}</span>
+          </div>
+        </div>`; }).join('')}</div>` : `<div class="empty">The text reader didn't find any item lines with prices. Check the raw text below, or try a sharper, flatter photo.</div>`}
+      <div class="row">
+        <button class="btn sm" data-act="scanAddLine">Add a line</button>
+        <span class="spacer"></span>
+        ${s.items.length ? `<span class="small muted">Ticked items: <b>$${sum.toFixed(2)}</b>. Compare with your receipt's subtotal to spot missed items.</span>` : ''}
+      </div>
+      <div class="row">
+        <button class="btn primary" data-act="scanAdd" ${on.length ? '' : 'disabled'}>Add ${on.length} item${on.length === 1 ? '' : 's'} to pantry</button>
+        <button class="btn" data-act="scanRestart">Scan another</button>
+        <button class="btn ghost" data-act="scanRaw">${s.showRaw ? 'Hide' : 'Show'} the text it read</button>
+      </div>
+      ${s.showRaw ? `<pre class="rawtext">${esc(s.raw || '(no text found)')}</pre>` : ''}
+    </div>`;
 }
 
 /* ----- Settings ----- */
@@ -1675,11 +1890,12 @@ function viewPantry(){
   return `
   <div class="pagehead">
     <div><h1>Pantry</h1><p class="sub">Everything in your kitchen and how much is left. Logged groceries add to it, cooking a prep takes from it, and you can correct any amount by hand.</p></div>
+    <div class="row" style="gap:18px;align-items:flex-end"><button class="btn primary" data-act="scanOpen">Scan a receipt</button>
     <div class="statrow">
       <div class="stat"><b>${all.length}</b><span>Items</span></div>
       <div class="stat"><b style="color:var(--warn)">${lowN}</b><span>Running low</span></div>
       <div class="stat"><b style="color:var(--bad)">${outN}</b><span>Out</span></div>
-    </div>
+    </div></div>
   </div>
   <div class="card">
     <h2>Add an item</h2>
@@ -2087,7 +2303,7 @@ function viewGroceries(){
         <p class="small muted" style="margin-top:10px">Tick items as you shop, then put them in the pantry in one go.</p>
       </div>
       <div class="card">
-        <h2>Log a purchase</h2>
+        <div class="cardhead"><h2>Log a purchase</h2><button class="btn sm primary" data-act="scanOpen">Scan a receipt</button></div>
         <p class="small muted" style="margin-bottom:10px">Bought something that wasn't on the list? Add it straight to your pantry. If an item with the same name exists, the amount is added to it.</p>
         <datalist id="gnames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
         <div class="row end">
@@ -2116,6 +2332,26 @@ function cookPrep(id){
 }
 
 const ACT = {
+  scanOpen: () => { ui.scanFrom = ui.tab === 'scan' ? (ui.scanFrom || 'pantry') : ui.tab; ui.scan = {stage: 'pick'}; ui.tab = 'scan'; window.scrollTo(0, 0); },
+  scanClose: () => { if(ui.scan && ui.scan.imgUrl) URL.revokeObjectURL(ui.scan.imgUrl); ui.scan = null; ui.tab = ui.scanFrom || 'pantry'; window.scrollTo(0, 0); },
+  scanCancel: () => { ui.scan = {stage: 'pick'}; },
+  scanRestart: () => { if(ui.scan && ui.scan.imgUrl) URL.revokeObjectURL(ui.scan.imgUrl); ui.scan = {stage: 'pick'}; window.scrollTo(0, 0); },
+  scanRaw: () => { ui.scan.showRaw = !ui.scan.showRaw; },
+  scanAddLine: () => { ui.scan.items.push({on: true, name: '', qty: '1', unit: 'pc', price: 0, raw: 'added by you', cat: 'Other'}); },
+  scanAdd: () => {
+    const items = ui.scan.items.filter(i => i.on && i.name.trim() && num(i.qty) > 0);
+    let merged = 0, fresh = 0, listed = 0;
+    for(const it of items){
+      const name = it.name.trim(), qty = num(it.qty), m = scanPantryMatch(name, it.unit);
+      if(m){ patch('pantry', m.id, {qty: Math.round((num(m.qty) + conv(qty, it.unit, m.unit)) * 1000) / 1000}); merged++; }
+      else { put('pantry', uid('p'), {name, qty, unit: it.unit, category: it.cat || guessCat(name), lowAt: null, ...(it.foodId ? {foodId: it.foodId} : {})}); fresh++; }
+      // Bought now, so it comes off the shopping list.
+      for(const sh of list('shopping')) if(!sh.checked && (pantryMatches(name, sh.name) || pantryMatches(sh.name, name))){ remove('shopping', sh.id); listed++; }
+    }
+    toast(`Added ${items.length} item${items.length === 1 ? '' : 's'} to your pantry${merged ? ` (${merged} added to items you already had)` : ''}${listed ? `. ${listed} crossed off your shopping list` : ''}.`);
+    if(ui.scan.imgUrl) URL.revokeObjectURL(ui.scan.imgUrl);
+    ui.scan = null; ui.tab = 'pantry'; window.scrollTo(0, 0);
+  },
   moreOpen: () => { document.getElementById('moresheet').hidden = false; document.getElementById('sheetback').hidden = false; },
   moreClose: () => closeMore(),
   phoneTab: el => {
@@ -2304,6 +2540,12 @@ const CHANGE = {
     patch('pantry', el.dataset.id, {unit: el.value, qty: c === null ? num(p.qty) : Math.round(c*1000)/1000, lowAt: p.lowAt == null || p.lowAt === '' ? null : (lc === null ? num(p.lowAt) : Math.round(lc*1000)/1000)}); },
   plow: el => patch('pantry', el.dataset.id, {lowAt: el.value === '' ? null : num(el.value)}),
   shopCheck: el => patch('shopping', el.dataset.id, {checked: el.checked}),
+  scanFile: el => {
+    const file = el.files && el.files[0]; el.value = '';
+    if(!file) return;
+    ui.scan = {stage: 'reading', progress: 0, status: 'Preparing the photo…', imgUrl: URL.createObjectURL(file), items: [], raw: ''};
+    setTimeout(() => runScan(file), 0);
+  },
   prefSel: el => {
     const k = el.dataset.k, v = k === 'fridgeDays' ? num(el.value) : el.value;
     put('settings', 'prefs', {...prefs(), [k]: v});

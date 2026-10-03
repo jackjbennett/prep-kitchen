@@ -19,7 +19,7 @@ $json = [ordered]@{ version = $version; notes = $Notes } | ConvertTo-Json
 [IO.File]::WriteAllText("$PSScriptRoot\version.json", $json, $utf8)
 
 git add -A
-git commit -q -m $Message
+git commit -q -m $Message -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 git push -q
 Write-Output "Published version $version"
 

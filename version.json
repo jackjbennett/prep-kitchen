@@ -1,4 +1,4 @@
 {
-    "version":  "2026.09.27.1610",
-    "notes":  "Phones now get a bottom tab bar (no more sideways scrolling) and a day-by-day Planner."
+    "version":  "2026.10.03.1621",
+    "notes":  "New: scan a grocery receipt to add items to your pantry (Pantry or Groceries, Scan a receipt)."
 }
