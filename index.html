@@ -725,7 +725,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.10.03.1732';
+const APP_VERSION = '2026.10.03.1734';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }
@@ -1738,13 +1738,24 @@ function closeBarcode(){
   if(bc.added.length) toast(`Added ${bc.added.length} scanned item${bc.added.length === 1 ? '' : 's'} to your ${bc.dest === 'list' ? 'shopping list' : 'pantry'}.`);
   render();
 }
+// Show a package size the way the label does: lb or oz for US weights, litres instead of thousands of ml.
+function friendlyAmount(pkg, text){
+  const t = String(text || '').toLowerCase(), q = num(pkg.qty);
+  const out = (v, u) => ({qty: String(Math.round(v * 100) / 100), unit: u});
+  if(pkg.unit === 'g'){
+    if(/\blbs?\b|pound/.test(t)) return out(conv(q, 'g', 'lb'), 'lb');
+    if(/\boz\b/.test(t) && !/fl\.?\s?oz/.test(t)) return out(conv(q, 'g', 'oz'), 'oz');
+    return q >= 1000 ? out(q / 1000, 'kg') : out(q, 'g');
+  }
+  return q >= 1000 ? out(q / 1000, 'l') : out(q, 'ml');
+}
 async function onBarcode(code){
   bc.paused = true; bcBeep();
   bc.item = {stage: 'looking', code}; renderBcSheet(); bcHint('');
   const food = await lookupBarcode(code);
   if(!bc.item || bc.item.code !== code) return;
   if(food){
-    const amt = food.pkg ? {qty: String(food.pkg.qty), unit: food.pkg.unit} : {qty: '1', unit: 'pc'};
+    const amt = food.pkg ? friendlyAmount(food.pkg, food.quantityText) : {qty: '1', unit: 'pc'};
     bc.item = {stage: 'found', code, food, name: food.name, qty: amt.qty, unit: amt.unit, base: amt, category: food.category || guessCat(food.name)};
   } else {
     bc.item = {stage: 'unknown', code, name: '', qty: '1', unit: 'pc', base: {qty: '1', unit: 'pc'}, category: 'Other'};
