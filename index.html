@@ -696,7 +696,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.10.03.1621';
+const APP_VERSION = '2026.10.03.1622';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }
@@ -1454,7 +1454,9 @@ function expandReceiptName(raw){
     if(Object.prototype.hasOwnProperty.call(RECEIPT_WORDS, w)){ if(RECEIPT_WORDS[w]) out.push(RECEIPT_WORDS[w]); continue; }
     out.push(w.length <= 2 && !/\d/.test(w) ? w : w.toLowerCase());
   }
-  let s = out.join(' ').replace(/\s+/g, ' ').trim();
+  // Drop words repeated by an expansion ("OLV OIL EVOO" -> "olive oil extra virgin").
+  const seen = new Set();
+  let s = out.join(' ').split(' ').filter(w => { const k = w.toLowerCase(); if(/\d/.test(k) || !seen.has(k)){ seen.add(k); return true; } return false; }).join(' ').replace(/\s+/g, ' ').trim();
   // Brands stay capitalized; everything else reads as a sentence.
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }
@@ -1467,13 +1469,14 @@ const CAT_WORDS = [
   ['Spices & Oils', /\boil\b|vinegar|\bsalt\b|seasoning|spice|cumin|paprika|cinnamon/],
   ['Canned & Dry', /beans|chickpea|garbanzo|soup|broth|stock|sauce|salsa|marinara|canned|diced|crushed|peanut|almond|cashew|walnut|honey|sugar|syrup|coffee|\btea\b|chips|ketchup|mustard|mayonnaise|dressing/]
 ];
+const NON_FOOD = /paper|towel|napkin|tissue|toilet|detergent|laundry|soap|shampoo|conditioner|toothpaste|deodorant|lotion|razor|diaper|wipes|foil|plastic wrap|zip ?loc|trash bag|garbage bag|freezer bag|sandwich bag|storage bag|batter(y|ies)|bulb|cleaner|bleach|sponge|dish ?wash|pet food|dog food|cat food|cat litter|vitamin|medicine|pharmacy|gift ?card|magazine|charcoal|candle/;
 function guessCat(name){ const n = name.toLowerCase(); const hit = CAT_WORDS.find(([, re]) => re.test(n)); return hit ? hit[0] : 'Other'; }
 function parseReceipt(text){
   const items = [];
   const lines = String(text || '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
   for(let line of lines){
     // Fix common misreads inside prices: 9.9O -> 9.90, 4,99 -> 4.99.
-    line = line.replace(/(\d)[oO](?=\D|$)/g, '$10').replace(/(\d),(\d{2})(?!\d)/g, '$1.$2');
+    line = line.replace(/(\d)0Z\b/gi, '$1 OZ').replace(/(\d)[oO](?=[^zZ\d]|$)/g, '$10').replace(/(\d),(\d{2})(?!\d)/g, '$1.$2');
     const prev = items[items.length - 1];
     const weight = line.match(/(\d+(?:\.\d+)?)\s*(lbs?|kg)\s*@/i);
     const letters = (line.match(/[a-z]/gi) || []).length;
@@ -1494,7 +1497,8 @@ function parseReceipt(text){
     }
     const name = expandReceiptName(rawName);
     if(!name || name.replace(/[^a-z]/gi, '').length < 3) continue;
-    items.push({on: true, name, qty, unit, price, raw: line, cat: guessCat(name)});
+    const nonFood = NON_FOOD.test(name.toLowerCase());
+    items.push({on: !nonFood, nonFood, name, qty, unit, price, raw: line, cat: nonFood ? 'Other' : guessCat(name)});
   }
   return items;
 }
@@ -1639,7 +1643,7 @@ function viewScan(){
           <input type="checkbox" id="sc-on-${ix}" data-bind="scan.items.${ix}.on" ${it.on ? 'checked' : ''} aria-label="Include ${esc(it.name)}">
           <div class="scanmain">
             <input id="f-scan-items-${ix}-name" value="${esc(it.name)}" data-bind="scan.items.${ix}.name" data-norender data-food="scan:${ix}" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="suggest" aria-label="Item name">
-            <div class="scanmeta"><span class="scanraw" title="What the receipt said">“${esc(it.raw)}”</span>${m ? `<span class="pill acc">Adds to your ${esc(m.name)}</span>` : `<span class="pill">${esc(it.cat)}</span>`}</div>
+            <div class="scanmeta"><span class="scanraw" title="What the receipt said">“${esc(it.raw)}”</span>${it.nonFood ? '<span class="pill warn">Not food? Left unticked</span>' : m ? `<span class="pill acc">Adds to your ${esc(m.name)}</span>` : `<span class="pill">${esc(it.cat)}</span>`}</div>
           </div>
           <div class="scanqty">
             <input id="f-scan-items-${ix}-qty" class="w-num" type="number" step="any" min="0" value="${esc(it.qty)}" data-bind="scan.items.${ix}.qty" data-norender aria-label="Amount">
