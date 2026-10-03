@@ -456,6 +456,10 @@ html.bc-open,html.bc-open body{overflow:hidden}
 @media (prefers-reduced-motion: no-preference){.spin{animation:spin .8s linear infinite}}
 @keyframes spin{to{transform:rotate(360deg)}}
 #toast{z-index:70}
+.randlist{display:flex;flex-direction:column}
+.randrow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.randrow:first-child{border-top:0}
+.randmain{display:flex;flex-direction:column;gap:4px;min-width:0}
 .scanpick{max-width:520px}
 .tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
 .scanpick .btn.big{text-align:center}
@@ -725,7 +729,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.10.03.1734';
+const APP_VERSION = '2026.10.03.1741';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }
@@ -749,6 +753,7 @@ const ui = {
   pSearch:'', pNew:{name:'',qty:'',unit:'g',category:'Produce',lowAt:''},
   rSel:null, rScale:'', rEdit:null, rSearch:'', labelFor:null, label:{},
   goalsEdit:false, gDraft:{},
+  rand:{start:T0, days:'5', slots:{Breakfast:false, Lunch:true, Dinner:true, Snack:false}, plan:null, addMissing:true},
   auth:{mode:'signin', email:'', password:'', busy:false, msg:'', err:''},
   acct:{newPw:'', msg:'', importText:''},
   prep:{recipeId:'', portions:'4', cookDate:T0, cooked:false, place:true, start:T0, slot:'Lunch'},
@@ -2096,7 +2101,7 @@ function viewToday(){
   return `
   <div class="pagehead">
     <div><h1>${greet}</h1><p class="sub">Your day at a glance: what's planned, how it adds up, and what needs attention.</p></div>
-    <div class="row"><button class="btn" data-act="go" data-id="groceries">Log groceries</button><button class="btn primary" data-act="go" data-id="planner">Prep a batch</button></div>
+    <div class="row"><button class="btn" data-act="go" data-id="groceries">Log groceries</button><button class="btn" data-act="go" data-id="planner">Prep a batch</button><button class="btn primary" data-act="randGo">Plan my week</button></div>
   </div>
   ${!list('recipes').length && !list('pantry').length ? `<div class="card welcome">
     <h2>Welcome to your kitchen</h2>
@@ -2263,7 +2268,7 @@ function viewRecipes(){
     <div class="stack">
       <div class="card">
         <div class="cardhead" style="align-items:flex-start">
-          <div><h1 style="font-size:24px">${esc(r.name)}</h1><p class="muted small">Makes ${fq(r.servings)} servings${r.time ? ' · ' + esc(r.time) : ''}</p></div>
+          <div><h1 style="font-size:24px">${esc(r.name)}</h1><p class="muted small">Makes ${fq(r.servings)} servings${r.time ? ' · ' + esc(r.time) : ''} · Good for ${recipeSlots(r).join(', ').toLowerCase()}</p></div>
           <div class="row">
             <button class="btn primary" data-act="prepThis" data-id="${r.id}">Meal prep this</button>
             <button class="btn" data-act="recipeEdit" data-id="${r.id}">Edit</button>
@@ -2306,7 +2311,7 @@ function labelForm(){
     <div class="row"><button class="btn primary" data-act="labelSave">Save food</button><button class="btn ghost" data-act="labelCancel">Cancel</button></div>
   </div>`;
 }
-function blankDraft(){ return {id:null, name:'', servings:'4', time:'', auto:true, ingredients:[{name:'',qty:'',unit:'g'}], steps:'', nutrition:Object.fromEntries(NUTR.map(n=>[n[0],'']))}; }
+function blankDraft(){ return {id:null, name:'', servings:'4', time:'', auto:true, meals:[], ingredients:[{name:'',qty:'',unit:'g'}], steps:'', nutrition:Object.fromEntries(NUTR.map(n=>[n[0],'']))}; }
 function viewRecipeEditor(){
   const d = ui.rEdit;
   return `
@@ -2320,6 +2325,9 @@ function viewRecipeEditor(){
       <label class="f">Servings it makes<input id="f-rEdit-servings" class="w-num" type="number" min="1" step="1" value="${esc(d.servings)}" data-bind="rEdit.servings" data-norender></label>
       <label class="f">Time<input id="f-rEdit-time" class="w-name" value="${esc(d.time)}" data-bind="rEdit.time" data-norender placeholder="e.g. 40 min"></label>
     </div>
+    <div><div class="eyebrow">Good for</div>
+      <div class="chips">${SLOTS.map(sl => { const on = (d.meals || []).includes(sl); return `<button class="chip${on ? ' on' : ''}" data-act="rMeal" data-v="${sl}" aria-pressed="${on}">${sl}</button>`; }).join('')}</div>
+      <p class="small muted" style="margin-top:6px">${(d.meals || []).length ? 'Plan my week only uses this recipe for the meals you ticked.' : `Not set, so Plan my week will treat it as ${recipeSlots({name: d.name}).join(' and ').toLowerCase()}.`}</p></div>
   </div>
   <div class="card stack">
     <h2>Ingredients</h2>
@@ -2368,6 +2376,103 @@ function prepPreview(){
     <p class="small"><b>What happens:</b> ${ui.prep.cooked ? `ingredients come out of your pantry now and ${fq(portions)} portions go in the fridge` : `the prep is saved for ${fmtD(ui.prep.cookDate)}; mark it cooked on that day to move it into the fridge`}${ui.prep.place && portions >= 1 ? `, and ${Math.floor(portions)} ${ui.prep.slot.toLowerCase()}s go on the calendar, ${fmtD(ui.prep.start)} – ${fmtD(endDate)}` : ''}.</p>
   </div>`;
 }
+/* ----- Plan my week (randomizer) ----- */
+// Which meals a recipe suits: its "Good for" tags, or a guess from its name.
+function recipeSlots(r){
+  if(Array.isArray(r.meals) && r.meals.length) return SLOTS.filter(s => r.meals.includes(s));
+  const n = String(r.name || '');
+  if(/oat|egg|pancake|waffle|muffin|smoothie|breakfast|granola|parfait|frittata|french toast|bagel|chia pudding/i.test(n)) return ['Breakfast'];
+  if(/snack|bites|\bbars?\b|hummus|trail mix|energy ball|protein ball/i.test(n)) return ['Snack'];
+  return ['Lunch', 'Dinner'];
+}
+// A throwaway copy of the pantry, so planning can "use up" ingredients without saving anything.
+function simHave(pan, name, unit){ let h = 0; for(const p of pan){ if(!pantryMatches(p.name, name)) continue; const c = conv(p.qty, p.unit, unit); if(c != null && c > 0) h += c; } return h; }
+function simTake(pan, name, unit, qty){
+  let left = qty;
+  for(const p of pan){
+    if(left <= 1e-9) break;
+    if(!pantryMatches(p.name, name)) continue;
+    const a = conv(p.qty, p.unit, unit); if(a == null || a <= 0) continue;
+    const t = Math.min(a, left); left -= t; p.qty -= conv(t, unit, p.unit);
+  }
+}
+function randScore(r, portions, pan, used, activeIds){
+  const miss = scaled(r, portions).filter(n => simHave(pan, n.name, n.unit) < n.qty - 1e-6).length;
+  return Math.random() * 1.2 + (miss === 0 ? 1 : 0) - miss * 0.2 - (used.get(r.id) || 0) * 0.9 - (activeIds.has(r.id) ? 0.4 : 0);
+}
+// Recompute what each batch is missing, in order, as earlier batches use up the pantry.
+function randMissing(batches){
+  const pan = list('pantry').map(p => ({...p, qty: num(p.qty)}));
+  for(const b of batches){
+    const r = S.recipes[b.recipeId];
+    const needs = r ? scaled(r, b.portions) : [];
+    b.missing = needs.map(n => ({name: n.name, unit: n.unit, qty: Math.max(0, n.qty - simHave(pan, n.name, n.unit))})).filter(n => n.qty > 1e-6);
+    needs.forEach(n => simTake(pan, n.name, n.unit, n.qty));
+  }
+}
+function makeRandomPlan(){
+  const o = ui.rand, fd = Math.max(1, num(prefs().fridgeDays) || 4);
+  const days = Array.from({length: Math.max(1, Math.min(14, num(o.days) || 5))}, (_, i) => addDays(o.start || today(), i));
+  const slots = SLOTS.filter(s => o.slots[s]);
+  const pan = list('pantry').map(p => ({...p, qty: num(p.qty)}));
+  const used = new Map(), activeIds = new Set(activePreps().map(p => p.recipeId));
+  const plan = list('plan'), batches = [], notes = [];
+  for(const slot of slots){
+    const cands = recipesSorted().filter(r => recipeSlots(r).includes(slot));
+    if(!cands.length){ notes.push(`No recipes for ${slot.toLowerCase()} yet. Add one, or tick ${slot} under “Good for” on a recipe.`); continue; }
+    // Free days for this meal, split into runs of consecutive days.
+    const free = days.filter(d => !plan.some(e => e.date === d && e.slot === slot && e.status !== 'skipped'));
+    if(free.length < days.length) notes.push(`${days.length - free.length} ${slot.toLowerCase()}${days.length - free.length === 1 ? ' is' : 's are'} already planned, so ${days.length - free.length === 1 ? 'it was' : 'they were'} left as is.`);
+    const runs = [];
+    for(const d of free){ const last = runs[runs.length - 1]; if(last && addDays(last[last.length - 1], 1) === d) last.push(d); else runs.push([d]); }
+    // Each run becomes as few batches as possible, none longer than the fridge limit, sized evenly (5 days -> 3 + 2).
+    for(const run of runs){
+      const n = Math.ceil(run.length / fd), base = Math.floor(run.length / n), extra = run.length % n;
+      let at = 0;
+      for(let b = 0; b < n; b++){
+        const len = base + (b < extra ? 1 : 0), chunk = run.slice(at, at + len); at += len;
+        let best = null, bestScore = -1e9;
+        for(const r of cands){ const sc = randScore(r, len, pan, used, activeIds); if(sc > bestScore){ bestScore = sc; best = r; } }
+        scaled(best, len).forEach(x => simTake(pan, x.name, x.unit, x.qty));
+        used.set(best.id, (used.get(best.id) || 0) + 1);
+        batches.push({id: uid('b'), recipeId: best.id, name: best.name, slot, days: chunk, portions: len, cookDate: chunk[0]});
+      }
+    }
+  }
+  randMissing(batches);
+  return {batches, notes};
+}
+function dayRange(ds){ const a = fmtD(ds[0], {weekday: 'short'}), b = fmtD(ds[ds.length - 1], {weekday: 'short'}); return ds.length === 1 ? `${a} ${fmtD(ds[0], {month: 'short', day: 'numeric'})}` : `${a}–${b}`; }
+function viewRandomizer(){
+  const o = ui.rand, p = o.plan;
+  const anySlot = SLOTS.some(s => o.slots[s]);
+  const needBuy = p ? p.batches.filter(b => b.missing.length).length : 0;
+  return `<div class="card stack" id="randcard">
+    <div class="cardhead" style="margin-bottom:0"><h2>Plan my week for me</h2>${p ? '<button class="btn sm ghost" data-act="randClear">Clear</button>' : ''}</div>
+    <p class="small muted">Picks recipes for the meals you choose and spreads them over the days, favoring recipes you have the ingredients for. No batch stays in the fridge longer than ${fq(prefs().fridgeDays)} days (change that in Settings).</p>
+    <div class="row end">
+      <label class="f">Starting<input id="f-rand-start" type="date" value="${esc(o.start)}" data-bind="rand.start" data-norender></label>
+      <label class="f">For<select id="f-rand-days" data-bind="rand.days" data-norender>${opts(Array.from({length: 14}, (_, i) => [String(i + 1), `${i + 1} day${i ? 's' : ''}`]), o.days)}</select></label>
+      <div><div class="eyebrow" style="margin-bottom:4px">Meals</div><div class="chips" style="margin-top:0">${SLOTS.map(s => `<button class="chip${o.slots[s] ? ' on' : ''}" data-act="randSlot" data-v="${s}" aria-pressed="${!!o.slots[s]}">${s}</button>`).join('')}</div></div>
+      <button class="btn primary" data-act="randMake" ${anySlot && list('recipes').length ? '' : 'disabled'}>${p ? 'Shuffle again' : 'Make a plan'}</button>
+    </div>
+    ${!list('recipes').length ? '<p class="small muted">Add a few recipes first and Plan my week can start choosing.</p>' : ''}
+    ${p ? `
+      ${p.notes.map(n => `<p class="small muted">${esc(n)}</p>`).join('')}
+      ${p.batches.length ? `<div class="randlist">${p.batches.map((b, ix) => `
+        <div class="randrow">
+          <div class="randmain">
+            <div class="row" style="gap:8px"><span class="pill acc">${esc(b.slot)}</span><b>${esc(b.name)}</b></div>
+            <div class="small muted">${dayRange(b.days)} · ${b.portions} portion${b.portions === 1 ? '' : 's'} · cook on ${fmtD(b.cookDate)}</div>
+            ${b.missing.length ? `<div class="small"><span class="pill warn">Need to buy</span> ${b.missing.map(m => `${esc(m.name)} (${niceQty(m.qty, m.unit)} ${esc(m.unit)})`).join(', ')}</div>` : '<div><span class="pill ok">You have everything</span></div>'}
+          </div>
+          <button class="btn sm" data-act="randSwap" data-ix="${ix}" ${(list('recipes').filter(r => recipeSlots(r).includes(b.slot)).length > 1) ? '' : 'disabled'} title="Pick a different recipe for this batch">Swap</button>
+        </div>`).join('')}</div>
+        ${needBuy ? `<label class="check"><input type="checkbox" id="f-rand-addMissing" data-bind="rand.addMissing" ${o.addMissing ? 'checked' : ''}>Add everything I need to buy to my shopping list</label>` : '<p class="small"><b>Your pantry covers this whole plan.</b></p>'}
+        <div class="row"><button class="btn primary" data-act="randUse">Use this plan</button><button class="btn" data-act="randMake">Shuffle again</button></div>` : ''}` : ''}
+  </div>`;
+}
+
 function viewPlanner(){
   const rs = recipesSorted();
   const planned = list('preps').filter(p => p.status === 'planned').sort((a,b) => String(a.cookDate).localeCompare(b.cookDate));
@@ -2379,6 +2484,7 @@ function viewPlanner(){
   <div class="pagehead">
     <div><h1>Planner</h1><p class="sub">Prep a batch, then spread the portions across the week. ${isPhone() ? 'Tap Edit on a meal to move it to another day.' : 'Drag a meal to another day, or tap Edit to move it.'}</p></div>
   </div>
+  ${viewRandomizer()}
   <div class="card">
     <h2>Prep a batch</h2>
     <div class="prepgrid">
@@ -2613,6 +2719,47 @@ function cookPrep(id){
 }
 
 const ACT = {
+  rMeal: el => { const m = ui.rEdit.meals || (ui.rEdit.meals = []); const v = el.dataset.v; const i = m.indexOf(v); if(i >= 0) m.splice(i, 1); else m.push(v); },
+  randGo: () => { ui.tab = 'planner'; lsSet('pk-tab', 'planner'); setTimeout(() => { const c = document.getElementById('randcard'); if(c) c.scrollIntoView({block: 'start', behavior: 'smooth'}); }, 60); },
+  randSlot: el => { ui.rand.slots[el.dataset.v] = !ui.rand.slots[el.dataset.v]; },
+  randClear: () => { ui.rand.plan = null; },
+  randMake: () => {
+    if(!SLOTS.some(s => ui.rand.slots[s])){ toast('Pick at least one meal to plan.'); return; }
+    ui.rand.plan = makeRandomPlan();
+    if(!ui.rand.plan.batches.length && !ui.rand.plan.notes.length) toast('Every meal in those days is already planned.');
+  },
+  randSwap: el => {
+    const p = ui.rand.plan, ix = +el.dataset.ix, b = p && p.batches[ix];
+    if(!b) return;
+    const cands = recipesSorted().filter(r => recipeSlots(r).includes(b.slot) && r.id !== b.recipeId);
+    if(!cands.length) return;
+    const used = new Map(), activeIds = new Set(activePreps().map(x => x.recipeId));
+    p.batches.forEach((x, i) => { if(i !== ix) used.set(x.recipeId, (used.get(x.recipeId) || 0) + 1); });
+    const pan = list('pantry').map(x => ({...x, qty: num(x.qty)}));
+    p.batches.slice(0, ix).forEach(x => { const r = S.recipes[x.recipeId]; if(r) scaled(r, x.portions).forEach(n => simTake(pan, n.name, n.unit, n.qty)); });
+    let best = null, bestScore = -1e9;
+    for(const r of cands){ const sc = randScore(r, b.portions, pan, used, activeIds); if(sc > bestScore){ bestScore = sc; best = r; } }
+    b.recipeId = best.id; b.name = best.name;
+    randMissing(p.batches);
+  },
+  randUse: () => {
+    const p = ui.rand.plan; if(!p || !p.batches.length) return;
+    for(const b of p.batches){
+      const prepId = uid('prep');
+      put('preps', prepId, {recipeId: b.recipeId, recipeName: b.name, portions: b.portions, cookDate: b.cookDate, status: 'planned', remaining: 0, createdOn: today()});
+      for(const d of b.days) put('plan', uid('m'), {date: d, slot: b.slot, prepId, recipeId: b.recipeId, name: b.name, status: 'planned'});
+    }
+    let listed = 0;
+    if(ui.rand.addMissing){
+      for(const m of mergeNeeds(p.batches.flatMap(b => b.missing))){
+        if(onList(m.name)) continue;
+        addToList(m.name, m.unit === 'pc' ? Math.ceil(m.qty - 1e-6) : Math.round(m.qty * 100) / 100, m.unit); listed++;
+      }
+    }
+    ui.week = weekStart(p.batches[0].days[0]);
+    toast(`Planned ${p.batches.length} batch${p.batches.length === 1 ? '' : 'es'}${listed ? ` and added ${listed} item${listed === 1 ? '' : 's'} to your shopping list` : ''}. Mark each one cooked when you make it.`);
+    ui.rand.plan = null;
+  },
   bcOpen: () => { openBarcode(); },
   bcClose: () => closeBarcode(),
   bcDest: el => { bc.dest = el.dataset.v; lsSet('pk-bc-dest', bc.dest); renderBcTop(); renderBcSheet(); },
@@ -2770,7 +2917,7 @@ const ACT = {
   recipeEdit: el => {
     const r = S.recipes[el.dataset.id];
     ui.labelFor = null;
-    ui.rEdit = {id: el.dataset.id, name: r.name||'', servings: String(r.servings||''), time: r.time||'', auto: r.autoNutrition === true,
+    ui.rEdit = {id: el.dataset.id, name: r.name||'', servings: String(r.servings||''), time: r.time||'', auto: r.autoNutrition === true, meals: Array.isArray(r.meals) ? [...r.meals] : [],
       ingredients: (r.ingredients||[]).map(i => ({name:i.name, qty:String(i.qty), unit:i.unit, foodId:i.foodId||null})),
       steps: (r.steps||[]).join('\n'), nutrition: Object.fromEntries(NUTR.map(([k]) => [k, r.nutrition && r.nutrition[k] != null ? String(r.nutrition[k]) : '']))};
     if(!ui.rEdit.ingredients.length) ui.rEdit.ingredients.push({name:'',qty:'',unit:'g'});
@@ -2787,7 +2934,7 @@ const ACT = {
     const id = d.id || uid('r');
     const servings = Math.max(1, num(d.servings) || 1);
     const calc = d.auto ? recipeCalc(ingredients, servings) : null;
-    put('recipes', id, {name:d.name.trim(), servings, time:d.time.trim(), ingredients,
+    put('recipes', id, {name:d.name.trim(), servings, time:d.time.trim(), meals: SLOTS.filter(s => (d.meals || []).includes(s)), ingredients,
       steps: d.steps.split('\n').map(s => s.trim()).filter(Boolean),
       autoNutrition: !!d.auto,
       nutrition: Object.fromEntries(NUTR.map(([k]) => [k, calc ? (k === 'calories' ? Math.round(calc.perServing[k]) : r1(calc.perServing[k])) : num(d.nutrition[k])]))});
