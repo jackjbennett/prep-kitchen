@@ -729,7 +729,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.10.03.1742';
+const APP_VERSION = '2026.10.03.1743';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }
@@ -2396,10 +2396,10 @@ function simTake(pan, name, unit, qty){
     const t = Math.min(a, left); left -= t; p.qty -= conv(t, unit, p.unit);
   }
 }
-function randScore(r, portions, pan, used, activeIds, prevId){
+function randScore(r, portions, pan, used, activeIds, prevId, sameDays){
   const miss = scaled(r, portions).filter(n => simHave(pan, n.name, n.unit) < n.qty - 1e-6).length;
   // Having everything helps, but repeating the meal right before it in the same slot costs more, so plans rotate.
-  return Math.random() * 1.2 + (miss === 0 ? 1 : 0) - miss * 0.2 - (used.get(r.id) || 0) * 0.6 - (r.id === prevId ? 0.8 : 0) - (activeIds.has(r.id) ? 0.4 : 0);
+  return Math.random() * 1.2 + (miss === 0 ? 1 : 0) - miss * 0.2 - (used.get(r.id) || 0) * 0.6 - (r.id === prevId ? 0.8 : 0) - (sameDays && sameDays.has(r.id) ? 0.9 : 0) - (activeIds.has(r.id) ? 0.4 : 0);
 }
 // Recompute what each batch is missing, in order, as earlier batches use up the pantry.
 function randMissing(batches){
@@ -2434,7 +2434,9 @@ function makeRandomPlan(){
         const len = base + (b < extra ? 1 : 0), chunk = run.slice(at, at + len); at += len;
         let best = null, bestScore = -1e9;
         const prevId = (batches.filter(x => x.slot === slot).slice(-1)[0] || {}).recipeId;
-        for(const r of cands){ const sc = randScore(r, len, pan, used, activeIds, prevId); if(sc > bestScore){ bestScore = sc; best = r; } }
+        // Avoid the same recipe for two different meals on the same days (chicken bowls for lunch and dinner).
+        const sameDays = new Set(batches.filter(x => x.slot !== slot && x.days.some(d => chunk.includes(d))).map(x => x.recipeId));
+        for(const r of cands){ const sc = randScore(r, len, pan, used, activeIds, prevId, sameDays); if(sc > bestScore){ bestScore = sc; best = r; } }
         scaled(best, len).forEach(x => simTake(pan, x.name, x.unit, x.qty));
         used.set(best.id, (used.get(best.id) || 0) + 1);
         batches.push({id: uid('b'), recipeId: best.id, name: best.name, slot, days: chunk, portions: len, cookDate: chunk[0]});
@@ -2741,7 +2743,8 @@ const ACT = {
     p.batches.slice(0, ix).forEach(x => { const r = S.recipes[x.recipeId]; if(r) scaled(r, x.portions).forEach(n => simTake(pan, n.name, n.unit, n.qty)); });
     let best = null, bestScore = -1e9;
     const prevId = (p.batches.slice(0, ix).filter(x => x.slot === b.slot).slice(-1)[0] || {}).recipeId;
-    for(const r of cands){ const sc = randScore(r, b.portions, pan, used, activeIds, prevId); if(sc > bestScore){ bestScore = sc; best = r; } }
+    const sameDays = new Set(p.batches.filter((x, i) => i !== ix && x.slot !== b.slot && x.days.some(d => b.days.includes(d))).map(x => x.recipeId));
+    for(const r of cands){ const sc = randScore(r, b.portions, pan, used, activeIds, prevId, sameDays); if(sc > bestScore){ bestScore = sc; best = r; } }
     b.recipeId = best.id; b.name = best.name;
     randMissing(p.batches);
   },
