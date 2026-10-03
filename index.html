@@ -696,7 +696,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.10.03.1622';
+const APP_VERSION = '2026.10.03.1627';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }
@@ -1471,12 +1471,37 @@ const CAT_WORDS = [
 ];
 const NON_FOOD = /paper|towel|napkin|tissue|toilet|detergent|laundry|soap|shampoo|conditioner|toothpaste|deodorant|lotion|razor|diaper|wipes|foil|plastic wrap|zip ?loc|trash bag|garbage bag|freezer bag|sandwich bag|storage bag|batter(y|ies)|bulb|cleaner|bleach|sponge|dish ?wash|pet food|dog food|cat food|cat litter|vitamin|medicine|pharmacy|gift ?card|magazine|charcoal|candle/;
 function guessCat(name){ const n = name.toLowerCase(); const hit = CAT_WORDS.find(([, re]) => re.test(n)); return hit ? hit[0] : 'Other'; }
+function cleanReceiptLine(l){
+  return l.replace(/\s+/g, ' ').trim()
+    .replace(/^[^A-Za-z0-9$#(]+|[^A-Za-z0-9.%*)]+$/g, '')        // stray edge marks like ":" or "|"
+    .replace(/(\d)\s*1b\b/gi, '$1 lb').replace(/\/1b\b/gi, '/lb') // "1.43 1b" -> "1.43 lb"
+    .replace(/\b(\d{1,2}(?:\.\d)?)(?:0Z|OZ|02|07)\b/gi, '$1 OZ')  // "807", "1502", "14.502" -> oz sizes
+    .replace(/(\d)[oO](?=[^zZ\d]|$)/g, '$10')                    // 9.9O -> 9.90
+    .replace(/(\d),(\d{2})(?!\d)/g, '$1.$2');                     // 4,99 -> 4.99
+}
+// Used only when no prices were read at all: take item-looking lines above the total.
+function parseReceiptLoose(text){
+  const items = [];
+  const lines = String(text || '').split(/\r?\n/).map(cleanReceiptLine).filter(Boolean);
+  const end = lines.findIndex(l => /\b(sub\s*-?\s*total|subtotal|total|balance)\b/i.test(l));
+  for(const line of (end > 0 ? lines.slice(0, end) : lines).slice(1)){
+    if(SKIP_LINE.test(line) || /\b(st|street|ave|avenue|rd|road|blvd|dr|drive|hwy|ln|suite)\b/i.test(line) || /\d{3}\D{0,3}\d{3}\D?\d{4}/.test(line) || /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(line)) continue;
+    const letters = (line.match(/[a-z]/gi) || []).length;
+    if(letters < 4 || letters / line.replace(/\s/g, '').length < 0.55 || /@/.test(line)) continue;
+    let rawName = line, qty = '1', unit = 'pc';
+    const sz = rawName.match(SIZE_RE);
+    if(sz){ const q = sizeToQty(sz[1], sz[2]); if(q){ qty = String(q.qty); unit = q.unit; } rawName = rawName.replace(sz[0], ' '); }
+    const name = expandReceiptName(rawName);
+    if(!name || name.replace(/[^a-z]/gi, '').length < 3) continue;
+    const nonFood = NON_FOOD.test(name.toLowerCase());
+    items.push({on: !nonFood, nonFood, name, qty, unit, price: 0, raw: line, cat: nonFood ? 'Other' : guessCat(name)});
+  }
+  return items;
+}
 function parseReceipt(text){
   const items = [];
-  const lines = String(text || '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const lines = String(text || '').split(/\r?\n/).map(cleanReceiptLine).filter(Boolean);
   for(let line of lines){
-    // Fix common misreads inside prices: 9.9O -> 9.90, 4,99 -> 4.99.
-    line = line.replace(/(\d)0Z\b/gi, '$1 OZ').replace(/(\d)[oO](?=[^zZ\d]|$)/g, '$10').replace(/(\d),(\d{2})(?!\d)/g, '$1.$2');
     const prev = items[items.length - 1];
     const weight = line.match(/(\d+(?:\.\d+)?)\s*(lbs?|kg)\s*@/i);
     const letters = (line.match(/[a-z]/gi) || []).length;
@@ -1518,12 +1543,23 @@ async function runScan(file){
       s.progress = m.status === 'recognizing text' ? m.progress : Math.min(0.15, (s.progress || 0) + 0.01);
       updateScanProgress();
     }});
-    await worker.setParameters({tessedit_pageseg_mode: '4', preserve_interword_spaces: '1'});
-    const {data} = await worker.recognize(canvas);
+    // Read the receipt as one block of rows first; that keeps each item next to its price.
+    // If that finds almost nothing, try the column layout too and keep whichever reads better.
+    await worker.setParameters({tessedit_pageseg_mode: '6', preserve_interword_spaces: '1'});
+    let {data} = await worker.recognize(canvas);
+    let best = {data, items: parseReceipt(data.text)};
+    if(best.items.length < 2 && ui.scan === s){
+      s.status = 'Taking a second look…'; s.progress = 0.5; updateScanProgress();
+      await worker.setParameters({tessedit_pageseg_mode: '4'});
+      const second = (await worker.recognize(canvas)).data;
+      const items2 = parseReceipt(second.text);
+      if(items2.length > best.items.length) best = {data: second, items: items2};
+    }
     await worker.terminate();
     if(ui.scan !== s) return;
-    s.raw = data.text || ''; s.conf = Math.round(num(data.confidence));
-    s.items = parseReceipt(s.raw);
+    s.raw = best.data.text || ''; s.conf = Math.round(num(best.data.confidence));
+    s.items = best.items.length ? best.items : parseReceiptLoose(s.raw);
+    s.noPrices = !best.items.length && s.items.length > 0;
     s.stage = 'review';
   }catch(e){
     if(ui.scan !== s) return;
@@ -1637,6 +1673,7 @@ function viewScan(){
     <div class="card stack">
       <div class="cardhead" style="margin-bottom:0"><h2>${s.items.length ? `Found ${s.items.length} item${s.items.length === 1 ? '' : 's'}` : 'No items found'}</h2>
         <span class="pill ${s.conf >= 75 ? 'ok' : s.conf >= 55 ? 'warn' : 'bad'}" title="How sure the text reader is about the letters it read">Reading confidence ${s.conf}%</span></div>
+      ${s.noPrices ? '<p class="notice">The prices on this receipt couldn\'t be read, so these are best guesses from the item names. Untick anything that isn\'t an item, like the store name.</p>' : ''}
       <p class="small muted">Check each item, fix names and amounts, and untick anything that isn't food. Start typing in a name to pick the exact food. Items that match something already in your pantry are added to it.</p>
       ${s.items.length ? `<div class="scanlist">${s.items.map((it, ix) => { const m = it.name.trim() && scanPantryMatch(it.name, it.unit); return `
         <div class="scanrow${it.on ? '' : ' off'}">
