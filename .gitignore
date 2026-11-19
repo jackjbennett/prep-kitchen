@@ -2,3 +2,6 @@
 legacy/
 backup/
 *.backup.json
+
+# Local Claude Code files (launch config, worktrees).
+.claude/

@@ -972,7 +972,8 @@ async function loadHousehold(){
   const {data, error} = await sb.from('households').select('id,name,invite_code,household_members(user_id,email,joined_at)').limit(1);
   if(error){
     // Table not there yet: the database still has the first, private-only setup.
-    if(error.code === '42P01' || error.code === 'PGRST205' || /households/.test(error.message || '')){ legacyDb = true; hh = null; return; }
+    // Only a missing table counts; permission or network errors are real errors, not an old database.
+    if(error.code === '42P01' || error.code === 'PGRST205' || /could not find the table|relation .*households.* does not exist/i.test(error.message || '')){ legacyDb = true; hh = null; return; }
     throw error;
   }
   legacyDb = false;
