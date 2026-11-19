@@ -245,6 +245,14 @@ label.check{display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointe
 .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
 .empty{color:var(--ink-2);padding:14px;border:1px dashed var(--line);border-radius:10px;text-align:center;font-size:14px}
 .notice{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 14px;font-size:14px;font-weight:500}
+/* shared kitchen (Settings) */
+.grow{flex:1 1 180px;min-width:0}
+.hh-sec{display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
+.hh-box{background:var(--accent-soft);color:var(--ink);border-radius:10px;padding:12px 14px}
+.hh-members{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.hh-members li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;overflow-wrap:anywhere}
+.hh-ava{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:14px}
+.hh-code{font:700 clamp(20px,6vw,28px)/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;padding:10px 14px;border:1.5px dashed var(--line);border-radius:10px;background:var(--bg);text-align:center;user-select:all;overflow-wrap:anywhere}
 
 /* Pantry */
 .statrow{display:flex;gap:18px;flex-wrap:wrap}
@@ -760,8 +768,10 @@ const ui = {
   week: weekStart(T0), planEdit:null, pe:{date:'',slot:''}, addTo:null, add:{prepId:'',slot:'Lunch'},
   noteNo:null, moveDate:'',
   buy:{name:'',qty:'',unit:'pc',category:'Other'}, listNew:{name:'',qty:'',unit:'pc'},
+  hh: hhBlank(),
   confirm:null
 };
+function hhBlank(){ return {name:'', code:'', bring:true, peek:null, busy:false, err:'', leaveAsk:false, takeCopy:true, removeAsk:null, rename:null}; }
 const list = col => Object.entries(S[col]).map(([id,d]) => ({id, ...d}));
 
 /* ---------- animated background ---------- */
@@ -836,7 +846,18 @@ function drawThumbs(){
   });
 }
 
-/* ---------- persistence (Supabase: one row per saved thing, private to its owner) ---------- */
+/* ---------- persistence (Supabase: one row per saved thing, in a private or shared kitchen) ---------- */
+// hh: the household this person shares a kitchen with ({id, name, invite_code, members}), or null.
+// Kitchen rows live in the household's space while in one; settings always stay in the person's own space.
+// legacyDb: the database hasn't been upgraded for households yet (supabase/schema.sql), so use the old row shape.
+let hh = null, legacyDb = false;
+const spaceOf = col => col !== 'settings' && hh ? hh.id : user.id;
+function rowOf(col, id, data){
+  if(legacyDb) return {user_id:user.id, collection:col, id, data};
+  const space = spaceOf(col);
+  return {space_id:space, user_id: space === user.id ? user.id : null, collection:col, id, data};
+}
+const ON_CONFLICT = () => legacyDb ? 'user_id,collection,id' : 'space_id,collection,id';
 const writes = {};
 const SEP = '\u0001';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -854,8 +875,8 @@ async function flush(path){
   while(w.has){
     const d = w.next; w.has = false;
     const {error} = d === null
-      ? await sb.from('items').delete().eq('user_id', user.id).eq('collection', col).eq('id', id)
-      : await sb.from('items').upsert({user_id:user.id, collection:col, id, data:d}, {onConflict:'user_id,collection,id'});
+      ? await sb.from('items').delete().eq(legacyDb ? 'user_id' : 'space_id', legacyDb ? user.id : spaceOf(col)).eq('collection', col).eq('id', id)
+      : await sb.from('items').upsert(rowOf(col, id, d), {onConflict:ON_CONFLICT()});
     if(error){
       w.tries++;
       if(w.tries <= 6){
@@ -873,12 +894,16 @@ function patch(col, id, part){ if(!S[col][id]) return; put(col, id, {...S[col][i
 function remove(col, id){ delete S[col][id]; queue(col, id, null); }
 
 async function loadAll(){
+  await loadHousehold();
   const next = Object.fromEntries(COLS.map(c => [c, {}]));
   const page = 1000;
   for(let from = 0; ; from += page){
-    const {data, error} = await sb.from('items').select('collection,id,data').order('collection').order('id').range(from, from + page - 1);
+    let q = sb.from('items').select(legacyDb ? 'collection,id,data' : 'space_id,collection,id,data');
+    // Only the kitchen in use: while in a household, a person's private kitchen is set aside.
+    if(!legacyDb) q = (hh ? q.or(`space_id.eq.${hh.id},and(space_id.eq.${user.id},collection.eq.settings)`) : q.eq('space_id', user.id)).order('space_id');
+    const {data, error} = await q.order('collection').order('id').range(from, from + page - 1);
     if(error) throw error;
-    for(const r of data) if(next[r.collection]) next[r.collection][r.id] = r.data;
+    for(const r of data) if(next[r.collection] && (legacyDb || r.space_id === spaceOf(r.collection))) next[r.collection][r.id] = r.data;
     if(data.length < page) break;
   }
   // Changes still being saved win over what the server had a moment ago.
@@ -899,6 +924,51 @@ async function refresh(){
 }
 function clearData(){ COLS.forEach(c => { S[c] = {}; }); loaded.clear(); }
 
+/* ---------- shared households ---------- */
+async function loadHousehold(){
+  const {data, error} = await sb.from('households').select('id,name,invite_code,household_members(user_id,email,joined_at)').limit(1);
+  if(error){
+    // Table not there yet: the database still has the first, private-only setup.
+    if(error.code === '42P01' || error.code === 'PGRST205' || /households/.test(error.message || '')){ legacyDb = true; hh = null; return; }
+    throw error;
+  }
+  legacyDb = false;
+  const h = data && data[0];
+  if(hh && (!h || h.id !== hh.id)) toast(`You’re no longer in ${hh.name}. This is your own kitchen.`);
+  hh = h ?{id:h.id, name:h.name, invite_code:h.invite_code, members:(h.household_members || []).sort((a, b) => String(a.joined_at).localeCompare(String(b.joined_at)))} : null;
+}
+// An invite link looks like …/prep-kitchen/?join=K7QH-2MXP-9C. Remember the code through sign-up and email confirmation.
+(function catchInviteLink(){
+  const code = new URLSearchParams(location.search).get('join');
+  if(!code) return;
+  lsSet('pk-join', code);
+  const u = new URL(location.href); u.searchParams.delete('join');
+  history.replaceState(null, '', u.pathname + u.search + u.hash);
+})();
+const inviteLink = code => `${PAGE_URL}?join=${encodeURIComponent(code)}`;
+function hhErr(e){
+  const m = String(e && e.message || '');
+  if(/fetch|network|load failed/i.test(m)) return 'Can’t reach the Prep Kitchen server. Check your connection and try again.';
+  if(/function .* does not exist|could not find the function/i.test(m)) return 'Shared kitchens aren’t set up on the server yet.';
+  return m || 'Something went wrong. Try again.';
+}
+// Reload everything after switching kitchens (create, join, leave).
+async function switchKitchen(){ hh = null; clearData(); mode = 'connecting'; render(); await refresh(); }
+// After sign-in: offer to join the household from an invite link.
+async function offerPendingInvite(){
+  const code = lsGet('pk-join');
+  if(!code || legacyDb) return;
+  if(hh){ lsSet('pk-join', ''); toast(`You’re already in ${hh.name}. Leave it first to join a different household.`); return; }
+  ui.hh.code = code; ui.tab = 'settings'; lsSet('pk-tab', 'settings');
+  await ACT.hhPeek();
+  render();
+}
+// Keep two people's screens in step: while sharing, pick up the other person's changes every minute.
+setInterval(() => {
+  const a = document.activeElement, typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+  if(user && hh && !document.hidden && !typing && !pendingCount() && mode === 'live' && Date.now() - lastLoad > 55000) refresh();
+}, 15000);
+
 /* ---------- accounts ---------- */
 const CFG = window.PREP_KITCHEN_CONFIG || {};
 const PAGE_URL = location.origin + location.pathname;
@@ -911,14 +981,16 @@ async function onSignedIn(session){
   user = session.user;
   showApp(true);
   if(changed){
+    hh = null; legacyDb = false; ui.hh = hhBlank();
     clearData(); mode = 'connecting'; render(); await refresh();
     const p = prefs();
     applyAppearance(); ui.week = weekStart(today()); ui.prep.slot = p.defaultSlot; ui.add.slot = p.defaultSlot;
     render();
+    if(mode === 'live') offerPendingInvite();
   }
 }
 function onSignedOut(){
-  user = null; clearData();
+  user = null; hh = null; clearData();
   for(const k in writes) delete writes[k];
   ui.auth = {...ui.auth, password:'', busy:false, err:''};
   if(ui.auth.mode === 'reset') ui.auth.mode = 'signin';
@@ -936,6 +1008,7 @@ function renderAuth(){
   el.innerHTML = `<div class="authcard">
     <div class="brand"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="var(--accent)"/><rect x="18.5" y="7.4" width="11" height="3.6" rx="1.8" fill="var(--accent-ink)"/><rect x="8" y="12.5" width="32" height="25" rx="6.5" fill="none" stroke="var(--accent-ink)" stroke-width="2.6"/><path d="M24 12.5v25M24 25h16" stroke="var(--accent-ink)" stroke-width="2.2"/><path d="M11.6 33c.1-8.2 5.1-11.9 9.9-11.6-.1 8-4.6 11.8-9.9 11.6z" fill="var(--accent-soft)"/><path d="M12.9 31.8l6.6-7.3" stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round"/><g fill="var(--accent-ink)"><ellipse cx="28.3" cy="19.4" rx="1.35" ry="2.35" transform="rotate(-25 28.3 19.4)"/><ellipse cx="32" cy="18" rx="1.35" ry="2.35"/><ellipse cx="35.7" cy="19.4" rx="1.35" ry="2.35" transform="rotate(25 35.7 19.4)"/></g><circle cx="32" cy="31.3" r="4.5" fill="var(--accent-ink)"/><circle cx="32.7" cy="30.9" r="2.2" fill="var(--butter)"/></svg><span>Prep <b>Kitchen</b></span></div>
     <div><h1>${h}</h1><p class="sub">${s}</p></div>
+    ${lsGet('pk-join') && (a.mode === 'signin' || a.mode === 'signup') ? `<p class="hh-box small" role="status">You’ve been invited to share a kitchen. ${a.mode === 'signup' ? 'Create your account' : 'Sign in or create an account'}, and you’ll be asked to join.</p>` : ''}
     <form id="authform" class="stack" novalidate>
       ${a.mode !== 'reset' ? `<label class="f">Email<input id="f-auth-email" type="email" autocomplete="email" value="${esc(a.email)}" data-bind="auth.email" data-norender required></label>` : ''}
       ${a.mode !== 'forgot' ? `<label class="f">${a.mode === 'reset' ? 'New password' : 'Password'}<input id="f-auth-password" type="password" autocomplete="${a.mode === 'signin' ? 'current-password' : 'new-password'}" value="${esc(a.password)}" data-bind="auth.password" data-norender required minlength="6"></label>` : ''}
@@ -1998,6 +2071,7 @@ function viewSettings(){
       </div>
     </div>
     <div class="stack">
+      ${householdCard()}
       <div class="card stack">
         <h2>Account</h2>
         <label class="f">New password<input id="f-acct-newPw" type="password" autocomplete="new-password" value="${esc(ui.acct.newPw)}" data-bind="acct.newPw" data-norender></label>
@@ -2023,6 +2097,86 @@ function viewSettings(){
     </div>
     </div>
   </div>`;
+}
+
+function householdCard(){
+  const h = ui.hh, busy = h.busy ? 'disabled' : '';
+  const err = h.err ? `<p class="autherr" role="alert">${esc(h.err)}</p>` : '';
+  if(legacyDb) return `<div class="card stack" id="household"><h2>Shared kitchen</h2><p class="small muted">Sharing a kitchen with the people you live with needs a quick server update first. Run the latest <code>supabase/schema.sql</code> in Supabase.</p></div>`;
+  if(!hh){
+    const pk = h.peek;
+    return `<div class="card stack" id="household">
+      <h2>Shared kitchen</h2>
+      <p class="small">Share your fridge, pantry, recipes, calendar and grocery list with the people you live with. Everyone keeps their own sign-in, settings and nutrition goals.</p>
+      ${err}
+      <div class="hh-sec">
+        <b>Join a household</b>
+        <p class="small muted">Got an invite code or link from someone at home? Paste it here.</p>
+        <div class="row end"><label class="f grow">Invite code<input id="f-hh-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-JK" value="${esc(h.code)}" data-bind="hh.code" data-norender></label><button class="btn" data-act="hhPeek" ${busy}>Find</button></div>
+        ${pk ? `<div class="hh-box stack">
+          <p>Join <b>${esc(pk.name)}</b>? ${pk.members === 1 ? '1 person is' : `${pk.members} people are`} in it now.</p>
+          <label class="check"><input type="checkbox" id="f-hh-bring" ${h.bring ? 'checked' : ''} data-bind="hh.bring" data-norender> Add my recipes to the shared recipe book too</label>
+          <p class="small muted">Your own pantry, fridge, calendar and lists are kept safe and set aside while you’re in the household. If you ever leave, they come back.</p>
+          <div class="row"><button class="btn primary" data-act="hhJoin" ${busy}>${h.busy ? 'Joining…' : 'Join household'}</button><button class="btn ghost" data-act="hhPeekCancel">Cancel</button></div>
+        </div>` : ''}
+      </div>
+      <div class="hh-sec">
+        <b>Start a household</b>
+        <p class="small muted">Your kitchen becomes the shared kitchen, and you get an invite code for the others.</p>
+        <div class="row end"><label class="f grow">Household name<input id="f-hh-name" maxlength="60" placeholder="Our kitchen" value="${esc(h.name)}" data-bind="hh.name" data-norender></label><button class="btn" data-act="hhCreate" ${busy}>Create</button></div>
+      </div>
+    </div>`;
+  }
+  const me = user.id, last = hh.members.length <= 1, canShare = !!navigator.share;
+  return `<div class="card stack" id="household">
+    <div class="row"><h2>Shared kitchen</h2><span class="spacer"></span><span class="pill acc">${hh.members.length} ${hh.members.length === 1 ? 'person' : 'people'}</span></div>
+    ${h.rename !== null
+      ? `<div class="row end"><label class="f grow">Household name<input id="f-hh-rename" maxlength="60" value="${esc(h.rename)}" data-bind="hh.rename" data-norender></label><button class="btn primary" data-act="hhRenameSave" ${busy}>Save</button><button class="btn ghost" data-act="hhRenameCancel">Cancel</button></div>`
+      : `<div class="row"><p><b>${esc(hh.name)}</b></p><button class="linkbtn" data-act="hhRename">Rename</button></div>`}
+    <p class="small muted">Your fridge, pantry, recipes, calendar and grocery list are shared with everyone here. Your settings and nutrition goals are still just yours.</p>
+    ${err}
+    <ul class="hh-members">${hh.members.map(m => `<li>
+      <span class="hh-ava" aria-hidden="true">${esc((m.email || '?').charAt(0).toUpperCase())}</span>
+      <span class="grow">${esc(m.email || 'Someone')}${m.user_id === me ? ' <span class="muted">(you)</span>' : ''}</span>
+      ${m.user_id === me ? '' : h.removeAsk === m.user_id
+        ? `<span class="row"><button class="btn sm danger" data-act="hhRemove" data-id="${esc(m.user_id)}" ${busy}>Remove</button><button class="btn sm ghost" data-act="hhRemoveCancel">Keep</button></span>`
+        : `<button class="linkbtn" data-act="hhRemoveAsk" data-id="${esc(m.user_id)}" aria-label="Remove ${esc(m.email || 'this person')}">Remove</button>`}
+    </li>`).join('')}</ul>
+    <div class="hh-sec">
+      <b>Invite someone</b>
+      <p class="small muted">Send them the link, or have them paste the code under Settings → Shared kitchen. Anyone with it can join and see your shared kitchen.</p>
+      <div class="hh-code" aria-label="Invite code">${esc(hh.invite_code)}</div>
+      <div class="row">
+        ${canShare ? '<button class="btn primary" data-act="hhShare">Share invite</button>' : ''}
+        <button class="btn${canShare ? '' : ' primary'}" data-act="hhCopy" data-what="link">Copy link</button>
+        <button class="btn" data-act="hhCopy" data-what="code">Copy code</button>
+        <button class="btn ghost" data-act="hhNewCode" ${busy}>New code</button>
+      </div>
+    </div>
+    <div class="hh-sec">
+      ${h.leaveAsk ? `<div class="hh-box stack">
+        <b>Leave ${esc(hh.name)}?</b>
+        ${last ? '<p class="small">You’re the last one here, so leaving deletes the household and its shared kitchen.</p>' : '<p class="small">The others keep the shared kitchen.</p>'}
+        <label class="check"><input type="checkbox" id="f-hh-takeCopy" ${h.takeCopy ? 'checked' : ''} data-bind="hh.takeCopy"> Keep a copy of the shared kitchen for myself</label>
+        <p class="small muted">You go back to your own kitchen${h.takeCopy ? ', with a copy of everything shared added to it' : ''}.</p>
+        <div class="row"><button class="btn danger" data-act="hhLeave" ${busy}>${h.busy ? 'Leaving…' : 'Leave household'}</button><button class="btn ghost" data-act="hhLeaveCancel">Cancel</button></div>
+      </div>` : '<button class="btn ghost" data-act="hhLeaveAsk">Leave household</button>'}
+    </div>
+  </div>`;
+}
+async function hhRun(fn){
+  if(ui.hh.busy) return false;
+  if(pendingCount()){ toast('Still saving your last change. Try again in a moment.'); return false; }
+  ui.hh.busy = true; ui.hh.err = ''; render();
+  try{ await fn(); ui.hh.busy = false; return true; }
+  catch(e){ ui.hh.busy = false; ui.hh.err = hhErr(e); render(); return false; }
+}
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); return true; }
+  catch(e){
+    const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); let ok = false; try{ ok = document.execCommand('copy'); }catch(x){} ta.remove(); return ok;
+  }
 }
 
 /* ----- Update notice ----- */
@@ -2063,8 +2217,8 @@ const EXAMPLE_RECIPES = {
 };
 async function bulkSave(rows){
   for(let i = 0; i < rows.length; i += 500){
-    const chunk = rows.slice(i, i + 500).map(r => ({user_id:user.id, collection:r.collection, id:r.id, data:r.data}));
-    const {error} = await sb.from('items').upsert(chunk, {onConflict:'user_id,collection,id'});
+    const chunk = rows.slice(i, i + 500).map(r => rowOf(r.collection, r.id, r.data));
+    const {error} = await sb.from('items').upsert(chunk, {onConflict:ON_CONFLICT()});
     if(error) throw error;
   }
 }
@@ -2843,6 +2997,88 @@ const ACT = {
   goalsEdit: () => { ui.gDraft = Object.fromEntries(Object.entries(goals()).map(([k,v]) => [k, String(v)])); ui.goalsEdit = true; },
   goalsCancel: () => { ui.goalsEdit = false; },
   goalsSave: () => { put('settings', 'goals', Object.fromEntries(Object.keys(DEFAULT_GOALS).map(k => [k, num(ui.gDraft[k]) || DEFAULT_GOALS[k]]))); ui.goalsEdit = false; toast('Goals saved.'); },
+  /* shared kitchen */
+  hhPeek: async () => {
+    const code = ui.hh.code.trim();
+    if(!code){ ui.hh.err = 'Paste the invite code or link first.'; return; }
+    ui.hh.peek = null;
+    await hhRun(async () => {
+      const {data, error} = await sb.rpc('pk_peek_household', {p_code: code});
+      if(error) throw error;
+      if(!data || !data.length){ lsSet('pk-join', ''); throw new Error('That invite code doesn’t match a household. Check it and try again. It may have been replaced with a new one.'); }
+      ui.hh.peek = data[0];
+    });
+    render();
+  },
+  hhPeekCancel: () => { ui.hh.peek = null; ui.hh.err = ''; lsSet('pk-join', ''); },
+  hhJoin: async () => {
+    const ok = await hhRun(async () => {
+      const {error} = await sb.rpc('pk_join_household', {p_code: ui.hh.code.trim(), p_bring_recipes: !!ui.hh.bring});
+      if(error) throw error;
+    });
+    if(!ok) return;
+    lsSet('pk-join', ''); const name = ui.hh.peek ? ui.hh.peek.name : 'the household';
+    ui.hh = hhBlank(); await switchKitchen(); toast(`You joined ${name}. This is your shared kitchen now.`);
+  },
+  hhCreate: async () => {
+    const ok = await hhRun(async () => {
+      const {error} = await sb.rpc('pk_create_household', {p_name: ui.hh.name.trim() || null});
+      if(error) throw error;
+    });
+    if(!ok) return;
+    ui.hh = hhBlank(); await switchKitchen(); toast('Household created. Share the invite with the people you live with.');
+  },
+  hhRename: () => { ui.hh.rename = hh.name; ui.hh.err = ''; },
+  hhRenameCancel: () => { ui.hh.rename = null; },
+  hhRenameSave: async () => {
+    const name = (ui.hh.rename || '').trim().slice(0, 60);
+    if(!name){ ui.hh.err = 'Give the household a name.'; return; }
+    const ok = await hhRun(async () => {
+      const {error} = await sb.from('households').update({name}).eq('id', hh.id);
+      if(error) throw error;
+    });
+    if(ok){ hh.name = name; ui.hh.rename = null; }
+    render();
+  },
+  hhCopy: async el => {
+    const t = el.dataset.what === 'code' ? hh.invite_code : inviteLink(hh.invite_code);
+    toast(await copyText(t) ? (el.dataset.what === 'code' ? 'Invite code copied.' : 'Invite link copied.') : 'Couldn’t copy. Select the code and copy it yourself.');
+  },
+  hhShare: async () => {
+    try{ await navigator.share({title: 'Join my Prep Kitchen', text: `Join ${hh.name} on Prep Kitchen so we can share our fridge, pantry and recipes. Invite code: ${hh.invite_code}`, url: inviteLink(hh.invite_code)}); }
+    catch(e){ if(e && e.name !== 'AbortError') ACT.hhCopy({dataset: {what: 'link'}}); }
+  },
+  hhNewCode: async () => {
+    const ok = await hhRun(async () => {
+      const {data, error} = await sb.rpc('pk_new_invite_code');
+      if(error) throw error;
+      hh.invite_code = data;
+    });
+    if(ok) toast('New invite code made. The old code and link no longer work.');
+    render();
+  },
+  hhRemoveAsk: el => { ui.hh.removeAsk = el.dataset.id; },
+  hhRemoveCancel: () => { ui.hh.removeAsk = null; },
+  hhRemove: async el => {
+    const id = el.dataset.id;
+    const ok = await hhRun(async () => {
+      const {error} = await sb.rpc('pk_remove_member', {p_user: id});
+      if(error) throw error;
+    });
+    if(ok){ hh.members = hh.members.filter(m => m.user_id !== id); ui.hh.removeAsk = null; toast('Removed from the household.'); }
+    render();
+  },
+  hhLeaveAsk: () => { ui.hh.leaveAsk = true; ui.hh.takeCopy = true; ui.hh.err = ''; },
+  hhLeaveCancel: () => { ui.hh.leaveAsk = false; },
+  hhLeave: async () => {
+    const name = hh.name, copy = !!ui.hh.takeCopy;
+    const ok = await hhRun(async () => {
+      const {error} = await sb.rpc('pk_leave_household', {p_take_copy: copy});
+      if(error) throw error;
+    });
+    if(!ok) return;
+    ui.hh = hhBlank(); await switchKitchen(); toast(`You left ${name}. This is your own kitchen again.`);
+  },
   del: el => {
     const k = el.dataset.key;
     if(ui.confirm !== k){ ui.confirm = k; clearTimeout(confirmT); confirmT = setTimeout(() => { ui.confirm = null; render(); }, 4000); return; }
@@ -3101,8 +3337,8 @@ document.addEventListener('keydown', ev => {
   if(ev.key !== 'Enter') return;
   const el = ev.target;
   if(el.matches('[data-change]')){ el.blur(); return; }
-  const map = {'pNew':'pantryAdd','buy':'buyLog','listNew':'listNew'};
-  const b = el.dataset && el.dataset.bind && map[el.dataset.bind.split('.')[0]];
+  const map = {'pNew':'pantryAdd','buy':'buyLog','listNew':'listNew','hh.code':'hhPeek','hh.name':'hhCreate','hh.rename':'hhRenameSave'};
+  const bind = el.dataset && el.dataset.bind, b = bind && (map[bind] || map[bind.split('.')[0]]);
   if(b){ ev.preventDefault(); ACT[b](); render(); }
 });
 /* drag & drop meals between days */
