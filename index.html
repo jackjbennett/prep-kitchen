@@ -170,8 +170,10 @@ body{background:var(--bg);background-image:var(--bg-art);background-size:var(--b
 :root[data-theme="dark"] .k-moon{display:inline}
 .kobj{position:absolute;z-index:1;left:calc(var(--x) * 100% / 1000);top:calc(var(--y) * 100% / 560);width:calc(var(--w) * 100% / 1000);height:calc(var(--h) * 100% / 560);padding:0;margin:0;border:0;background:none;color:var(--ink);font:inherit;cursor:pointer;border-radius:14px;-webkit-tap-highlight-color:transparent}
 .kobj > svg{display:block;width:100%;height:100%;overflow:visible}
-.kobj.k-alerts{z-index:2}
 .kobj:hover,.kobj:focus-visible{z-index:3}
+/* The alerts note sits inside the fridge's box: keep it on top even while the fridge is hovered,
+   so moving from the fridge onto the note selects the note. */
+.kobj.k-alerts{z-index:4}
 .kobj:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
 .kp{transform-box:fill-box}
 .klbl{position:absolute;left:50%;bottom:0;transform:translate(-50%,50%);display:flex;align-items:center;gap:5px;white-space:nowrap;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font:700 12.5px/1.25 Figtree,system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.16);pointer-events:none}
