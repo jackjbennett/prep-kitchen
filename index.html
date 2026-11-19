@@ -174,6 +174,10 @@ body{background:var(--bg);background-image:var(--bg-art);background-size:var(--b
 /* The alerts note sits inside the fridge's box: keep it on top even while the fridge is hovered,
    so moving from the fridge onto the note selects the note. */
 .kobj.k-alerts{z-index:4}
+/* Only the fridge's lower door (and its label) opens the fridge. The freezer above, where the alerts
+   note hangs, doesn't react, so it's clear which one you're pointing at. The hit area stays put while the door swings. */
+.kobj.k-fridge,.kobj.k-fridge svg *{pointer-events:none}
+.kobj.k-fridge .k-hit,.kobj.k-fridge .klbl{pointer-events:all}
 .kobj:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
 .kp{transform-box:fill-box}
 .klbl{position:absolute;left:50%;bottom:0;transform:translate(-50%,50%);display:flex;align-items:center;gap:5px;white-space:nowrap;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font:700 12.5px/1.25 Figtree,system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.16);pointer-events:none}
@@ -2067,7 +2071,7 @@ const KART = {
         <circle cx="44" cy="300" r="10" fill="var(--fat)" stroke="var(--k-line)" stroke-width="1.5"/><path d="M44 290q4 -7 10 -5" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round"/>
         <ellipse cx="78" cy="318" rx="13" ry="9" fill="var(--butter)" stroke="var(--k-line)" stroke-width="1.5"/>
         <path d="M108 296l4 8 9 1-6 6 2 9-9-5-8 5 2-9-6-6 9-1z" fill="var(--protein)" stroke="var(--k-line)" stroke-width="1.5"/>
-      </g></svg>`;
+      </g><rect class="k-hit" x="0" y="148" width="170" height="322" fill="none"/></svg>`;
   },
   note: n => `<svg viewBox="0 0 80 80" aria-hidden="true"><g class="kp" style="--o:rotate(7deg) scale(1.08);transform-box:view-box;transform-origin:40px 10px">
       <g transform="rotate(-4 40 40)"><path d="M10 12h60v52l-12 12h-48z" fill="var(--butter)" stroke="var(--k-line)" stroke-width="1.8"/><path d="M70 64l-12 12v-12z" fill="var(--k-paper-ink)" opacity=".18"/>
