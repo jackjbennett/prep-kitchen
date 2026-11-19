@@ -788,7 +788,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, foods:{}};
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
-const APP_VERSION = '2026.11.18.1939';
+const APP_VERSION = '2026.11.18.1944';
 const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }

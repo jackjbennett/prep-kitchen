@@ -1,4 +1,4 @@
 {
-    "version":  "2026.11.18.1939",
-    "notes":  "Fixed: on desktop you can move from the fridge straight onto the alerts note."
+    "version":  "2026.11.18.1944",
+    "notes":  "Only the fridge door opens the fridge now, so the freezer and the alerts note on it are easier to tell apart."
 }
