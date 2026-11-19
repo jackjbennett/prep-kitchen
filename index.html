@@ -99,46 +99,107 @@ img{max-width:100%}
 *{box-sizing:border-box}
 body{background:var(--bg);background-image:var(--bg-art);background-size:var(--bg-art-size);background-attachment:fixed;color:var(--ink);font:15px/1.5 Figtree,system-ui,-apple-system,"Segoe UI",sans-serif;padding-inline:0;padding-block:0;font-variant-numeric:tabular-nums}
 .wrap{max-width:1240px;margin:0 auto}
-.app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
-.side{position:sticky;top:0;height:100vh;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:22px;padding:22px 14px 18px;overflow-y:auto}
-.side .brand{padding-inline:8px}
-.nav{display:flex;flex-direction:column;gap:3px}
-.navbtn{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;border:0;background:none;color:var(--ink-2);font:600 14px Figtree,system-ui,sans-serif;cursor:pointer;text-align:left;white-space:nowrap}
-.navbtn svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.navbtn:hover{background:var(--surface-2);color:var(--ink)}
-.navbtn.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow),inset 0 0 0 1px var(--line)}
-.navbtn.on svg{color:var(--accent)}
-.navbtn .cnt{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--ink-2)}
-.navbtn .cnt.warn{color:var(--warn)}
-.navbtn .badge{margin-left:auto}
-.navsep{height:1px;background:var(--line);margin:6px 10px}
-.sidefoot{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-inline:8px;font-size:12.5px;color:var(--ink-2)}
-.sidefoot .date{font-weight:700;color:var(--ink);font-size:13px}
-.content{padding-inline:32px;padding-block:28px 64px;min-width:0}
-@media (max-width:860px){
-  .app{grid-template-columns:1fr}
-  .side{top:env(safe-area-inset-top,0px);height:auto;flex-direction:row;align-items:center;justify-content:space-between;gap:14px;padding:10px 16px;z-index:10;border-right:0;border-bottom:1px solid var(--line);overflow:visible}
-  .side .brand{padding-inline:0;font-size:18px}
-  .side .nav,.navsep,.sidefoot{display:none}
-  .content{padding-inline:16px;padding-block:18px calc(96px + env(safe-area-inset-bottom,0px))}
-  .tabbar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb, var(--side) 88%, transparent);-webkit-backdrop-filter:blur(20px) saturate(1.2);backdrop-filter:blur(20px) saturate(1.2);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
-  .tabbtn{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;color:var(--ink-2);font:600 10.5px Figtree,system-ui,sans-serif;padding:5px 2px;position:relative;cursor:pointer;min-width:0;-webkit-tap-highlight-color:transparent}
-  .tabbtn span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .tabbtn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .tabbtn.on{color:var(--accent)}
-  .tabbtn.on svg{stroke-width:2.2}
-  .tabbtn .badge{position:absolute;top:1px;left:calc(50% + 5px)}
-  .sheet-back:not([hidden]){display:block;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:40}
-  .sheet:not([hidden]){display:block;position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--surface);border-radius:22px 22px 0 0;padding:8px 16px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(0,0,0,.25)}
-  .sheet-grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 14px}
-  .sheet-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .sheet-item{display:flex;align-items:center;gap:12px;padding:16px 14px;border-radius:14px;background:var(--bg);border:1px solid var(--line);font:600 15px Figtree,system-ui,sans-serif;color:var(--ink);cursor:pointer;text-align:left}
-  .sheet-item.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-  .sheet-item svg{width:24px;height:24px;flex:none;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .sheet-item .cnt,.sheet-item .badge{margin-left:auto}
-  #updatebar{top:auto;bottom:calc(84px + env(safe-area-inset-bottom,0px))}
-  #toast{bottom:calc(90px + env(safe-area-inset-bottom,0px))}
+.app{display:flex;flex-direction:column;min-height:100vh}
+/* Header: a button back to the kitchen, plus quick jumps between sections. */
+.topbar{position:sticky;top:0;z-index:10;background:var(--side);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1304px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:8px 32px;min-height:58px}
+.homebtn{display:flex;align-items:center;gap:9px;flex:none;border:0;background:none;color:var(--ink);padding:4px 10px 4px 4px;border-radius:12px;cursor:pointer;font:700 20px/1 "Bricolage Grotesque",Figtree,system-ui,sans-serif;letter-spacing:-.02em;-webkit-tap-highlight-color:transparent}
+.homebtn:hover{background:var(--surface-2)}
+.homebtn .logo{width:34px;height:34px;flex:none;filter:drop-shadow(0 3px 8px rgba(0,0,0,.18))}
+.homebtn b{font-weight:700;color:var(--accent)}
+.homebtn .chev{display:none;width:15px;height:15px;flex:none;fill:none;stroke:var(--ink-2);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;margin-right:-3px}
+.homebtn.away{font-size:16px;padding-left:2px}
+.homebtn.away .chev{display:block}
+.homebtn.away .logo{width:30px;height:30px}
+.jump{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.jump::-webkit-scrollbar{display:none}
+.jumpbtn{position:relative;display:flex;align-items:center;gap:7px;flex:none;padding:7px 10px;border-radius:9px;border:0;background:none;color:var(--ink-2);font:600 13.5px Figtree,system-ui,sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.jumpbtn svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.jumpbtn:hover{background:var(--surface-2);color:var(--ink)}
+.jumpbtn.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow),inset 0 0 0 1px var(--line)}
+.jumpbtn.on svg{color:var(--accent)}
+.jumpbtn .badge{position:absolute;top:0;right:0;font-size:10px;padding:2px 5px}
+.topbar .savestate{flex:none;margin-left:auto}
+.content{padding-inline:32px;padding-block:24px 64px;min-width:0}
+@media (max-width:1180px){.jumpbtn:not(.on) .lbl{display:none}.jumpbtn{padding:8px 9px}}
+@media (max-width:700px){
+  .topbar{top:env(safe-area-inset-top,0px)}
+  .topbar-in{padding:6px 16px;gap:6px;min-height:52px}
+  .homebtn{font-size:18px}
+  .homebtn.away{padding:4px 4px 4px 0}
+  .homebtn.away .hb-text,.jumpbtn .lbl{display:none}
+  .jump{gap:0}
+  .jumpbtn{padding:8px 6px}
+  .topbar .savestate{font-size:0;gap:0}
+  .content{padding-inline:16px;padding-block:16px calc(40px + env(safe-area-inset-bottom,0px))}
 }
+/* Kitchen home: a drawn kitchen where each object is a button into a section.
+   Objects sit on a 1000x560 scene (--x/--y/--w/--h), or a 360x640 one when the kitchen is narrow (--px...). */
+.kwrap{container-type:inline-size}
+.kitchen{
+  --k-wall:color-mix(in srgb, var(--accent-soft) 55%, var(--bg));
+  --k-tile:color-mix(in srgb, var(--surface) 72%, var(--accent-soft));
+  --k-grout:color-mix(in srgb, var(--line) 85%, var(--ink-2));
+  --k-wood:color-mix(in srgb, #C9955F 80%, var(--bg));
+  --k-wood2:color-mix(in srgb, #8E5F36 84%, var(--bg));
+  --k-cab:color-mix(in srgb, var(--accent) 74%, var(--bg));
+  --k-cab2:color-mix(in srgb, var(--accent) 52%, var(--bg));
+  --k-appl:color-mix(in srgb, var(--surface) 88%, var(--ink-2));
+  --k-appl2:color-mix(in srgb, var(--surface) 64%, var(--ink-2));
+  --k-line:color-mix(in srgb, var(--ink) 60%, transparent);
+  --k-floor:color-mix(in srgb, var(--ink-2) 30%, var(--bg));
+  --k-floor2:color-mix(in srgb, var(--ink-2) 22%, var(--bg));
+  --k-glow:color-mix(in srgb, #FFF3C6 88%, var(--bg));
+  --k-sky:color-mix(in srgb, #A9DBF3 74%, var(--bg));
+  --k-hill:color-mix(in srgb, var(--accent) 45%, var(--k-sky));
+  --k-glass:color-mix(in srgb, #1E2622 82%, var(--bg));
+  --k-paper:color-mix(in srgb, #FFFBF2 92%, var(--bg));
+  --k-paper-ink:#3A3226; --k-paper-ink2:#857A68;
+  --k-bag:color-mix(in srgb, #D9B07A 90%, var(--bg));
+  --k-bag2:color-mix(in srgb, #B98D58 90%, var(--bg));
+  --k-phone:#232A26;
+  --k-apron:color-mix(in srgb, var(--protein) 78%, var(--bg));
+  position:relative;width:100%;aspect-ratio:1000/560;max-width:max(620px, calc((100vh - 220px) * 1.786));margin-inline:auto;
+  border-radius:22px;overflow:hidden;border:1px solid var(--line);background:var(--k-wall);box-shadow:0 12px 36px rgba(0,0,0,.10)
+}
+.kbg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.kbg.tall{display:none}
+.k-moon{display:none}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .k-sun{display:none}:root:not([data-theme="light"]) .k-moon{display:inline}}
+:root[data-theme="dark"] .k-sun{display:none}
+:root[data-theme="dark"] .k-moon{display:inline}
+.kobj{position:absolute;z-index:1;left:calc(var(--x) * 100% / 1000);top:calc(var(--y) * 100% / 560);width:calc(var(--w) * 100% / 1000);height:calc(var(--h) * 100% / 560);padding:0;margin:0;border:0;background:none;color:var(--ink);font:inherit;cursor:pointer;border-radius:14px;-webkit-tap-highlight-color:transparent}
+.kobj > svg{display:block;width:100%;height:100%;overflow:visible}
+.kobj.k-alerts{z-index:2}
+.kobj:hover,.kobj:focus-visible{z-index:3}
+.kobj:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+.kp{transform-box:fill-box}
+.klbl{position:absolute;left:50%;bottom:0;transform:translate(-50%,50%);display:flex;align-items:center;gap:5px;white-space:nowrap;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font:700 12.5px/1.25 Figtree,system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.16);pointer-events:none}
+.klbl em{font-style:normal;font-size:11.5px;color:var(--ink-2)}
+.klbl em.warn{color:var(--warn)}
+.klbl .badge{font-size:10.5px;padding:2px 5px}
+.kobj:hover .klbl,.kobj:focus-visible .klbl,.kobj.open .klbl{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.kobj:hover .klbl em,.kobj:focus-visible .klbl em,.kobj.open .klbl em{color:inherit}
+@container (max-width: 620px){
+  .kitchen{aspect-ratio:360/640;max-width:none;border-radius:18px}
+  .kbg.wide{display:none}
+  .kbg.tall{display:block}
+  .kobj{left:calc(var(--px) * 100% / 360);top:calc(var(--py) * 100% / 640);width:calc(var(--pw) * 100% / 360);height:calc(var(--ph) * 100% / 640)}
+  .klbl{font-size:11.5px;padding:2px 8px;gap:4px}
+  .klbl em{font-size:10.5px}
+}
+@media (prefers-reduced-motion: no-preference){
+  .kp{transition:transform .5s cubic-bezier(.34,1.4,.5,1)}
+  .kobj:hover .kp,.kobj:focus-visible .kp{transform:var(--o)}
+  .kobj.open .kp{animation:k-open .3s ease-out forwards}
+  .kobj:hover .k-scanline,.kobj:focus-visible .k-scanline,.kobj.open .k-scanline{animation:k-scan .9s ease-in-out infinite alternate}
+  .k-steam path{animation:k-steam 3.2s ease-in-out infinite}
+  .k-steam path:nth-child(2){animation-delay:-1.1s}
+  .k-steam path:nth-child(3){animation-delay:-2.2s}
+}
+@keyframes k-open{to{transform:var(--o)}}
+@keyframes k-scan{from{transform:translateY(-16px)}to{transform:translateY(20px)}}
+@keyframes k-steam{0%{opacity:0;transform:translateY(8px)}40%{opacity:.55}100%{opacity:0;transform:translateY(-14px)}}
 /* Today */
 .dash{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
 .dash .span2{grid-column:span 2}
@@ -365,7 +426,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .shop:first-child{border-top:0}
 .shop.done .nm{text-decoration:line-through;color:var(--ink-2)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;max-width:calc(100% - 32px);z-index:20;box-shadow:0 6px 24px rgba(0,0,0,.2)}
-@media (prefers-reduced-motion: no-preference){.btn,.rcard,.navbtn,.sday{transition:background .12s,border-color .12s,color .12s}}
+@media (prefers-reduced-motion: no-preference){.btn,.rcard,.jumpbtn,.sday{transition:background .12s,border-color .12s,color .12s}}
 /* Sign-in */
 .authwrap{min-height:100vh;display:grid;place-items:center;padding:32px 16px}
 .authcard{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px 26px;display:flex;flex-direction:column;gap:18px;box-shadow:0 10px 40px rgba(23,33,28,.08)}
@@ -376,10 +437,6 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .linkbtn:hover{text-decoration:underline}
 .autherr{color:var(--bad);background:var(--bad-soft);border-radius:8px;padding:8px 10px;font-size:13.5px;font-weight:600}
 .authmsg{color:var(--ok);background:var(--ok-soft);border-radius:8px;padding:8px 10px;font-size:13.5px;font-weight:600}
-.acctbtns{display:flex;gap:6px;flex-wrap:wrap}
-.acctmail{font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#installbtn{width:100%}
-@media (min-width:861px){.tabbar,.sheet,.sheet-back{display:none!important}}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font:600 13px Figtree,system-ui,sans-serif;cursor:pointer}
 .chip svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -406,7 +463,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .pal-thumb{width:100%;height:100%;display:block}
 #scene{position:fixed;inset:0;z-index:0;pointer-events:none;display:block}
 .app,.authwrap{position:relative;z-index:1}
-:root[data-scene] .side{background:color-mix(in srgb, var(--side) 72%, transparent);-webkit-backdrop-filter:blur(18px) saturate(1.2);backdrop-filter:blur(18px) saturate(1.2)}
+:root[data-scene] .topbar{background:color-mix(in srgb, var(--side) 72%, transparent);-webkit-backdrop-filter:blur(18px) saturate(1.2);backdrop-filter:blur(18px) saturate(1.2)}
 :root[data-scene] .card,:root[data-scene] .rcard,:root[data-scene] .authcard,:root[data-scene] .pal,:root[data-scene] .sday{background:color-mix(in srgb, var(--surface) 91%, transparent)}
 :root[data-scene] .pagehead{background:color-mix(in srgb, var(--bg) 70%, transparent);border-radius:16px;padding:16px 18px}
 :root[data-scene] .empty{background:color-mix(in srgb, var(--surface) 75%, transparent)}
@@ -423,9 +480,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 :root[data-text="larger"]{--z:1.2}
 .app,.authwrap{zoom:var(--z)}
 .app{min-height:calc(100vh / var(--z))}
-.side{height:calc(100vh / var(--z))}
 .authwrap{min-height:calc(100vh / var(--z))}
-@media (max-width:860px){.side{height:auto}}
 .suggest{position:absolute;z-index:50;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.18);max-height:min(430px,60vh);overflow-y:auto;padding:6px}
 .sg-h{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);padding:8px 10px 4px}
 .sg-item{padding:7px 10px;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;gap:1px}
@@ -496,21 +551,12 @@ html.bc-open,html.bc-open body{overflow:hidden}
 <div id="auth" class="authwrap"></div>
 
 <div class="app" hidden>
-  <aside class="side">
-    <div class="brand"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="var(--accent)"/><rect x="18.5" y="7.4" width="11" height="3.6" rx="1.8" fill="var(--accent-ink)"/><rect x="8" y="12.5" width="32" height="25" rx="6.5" fill="none" stroke="var(--accent-ink)" stroke-width="2.6"/><path d="M24 12.5v25M24 25h16" stroke="var(--accent-ink)" stroke-width="2.2"/><path d="M11.6 33c.1-8.2 5.1-11.9 9.9-11.6-.1 8-4.6 11.8-9.9 11.6z" fill="var(--accent-soft)"/><path d="M12.9 31.8l6.6-7.3" stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round"/><g fill="var(--accent-ink)"><ellipse cx="28.3" cy="19.4" rx="1.35" ry="2.35" transform="rotate(-25 28.3 19.4)"/><ellipse cx="32" cy="18" rx="1.35" ry="2.35"/><ellipse cx="35.7" cy="19.4" rx="1.35" ry="2.35" transform="rotate(25 35.7 19.4)"/></g><circle cx="32" cy="31.3" r="4.5" fill="var(--accent-ink)"/><circle cx="32.7" cy="30.9" r="2.2" fill="var(--butter)"/></svg><span>Prep <b>Kitchen</b></span></div>
-    <nav class="nav" id="tabs" aria-label="Sections"></nav>
-    <div class="sidefoot">
-      <button class="btn sm" id="installbtn" data-act="install" hidden>Install app</button>
-      <div class="date" id="todaylabel"></div>
-      <div class="savestate" id="savestate"><span class="dot busy"></span>Connecting…</div>
-      <div class="acctmail" id="acctmail"></div>
-      <div class="acctbtns"><button class="btn sm ghost" data-act="signOut">Sign out</button></div>
-    </div>
-  </aside>
+  <header class="topbar"><div class="topbar-in">
+    <button class="homebtn" id="homebtn" data-act="tab" data-id="home"><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="var(--accent)"/><rect x="18.5" y="7.4" width="11" height="3.6" rx="1.8" fill="var(--accent-ink)"/><rect x="8" y="12.5" width="32" height="25" rx="6.5" fill="none" stroke="var(--accent-ink)" stroke-width="2.6"/><path d="M24 12.5v25M24 25h16" stroke="var(--accent-ink)" stroke-width="2.2"/><path d="M11.6 33c.1-8.2 5.1-11.9 9.9-11.6-.1 8-4.6 11.8-9.9 11.6z" fill="var(--accent-soft)"/><path d="M12.9 31.8l6.6-7.3" stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round"/><g fill="var(--accent-ink)"><ellipse cx="28.3" cy="19.4" rx="1.35" ry="2.35" transform="rotate(-25 28.3 19.4)"/><ellipse cx="32" cy="18" rx="1.35" ry="2.35"/><ellipse cx="35.7" cy="19.4" rx="1.35" ry="2.35" transform="rotate(25 35.7 19.4)"/></g><circle cx="32" cy="31.3" r="4.5" fill="var(--accent-ink)"/><circle cx="32.7" cy="30.9" r="2.2" fill="var(--butter)"/></svg><span class="hb-text">Prep <b>Kitchen</b></span></button>
+    <nav class="jump" id="jump" aria-label="Sections" hidden></nav>
+    <div class="savestate" id="savestate"><span class="dot busy"></span>Connecting…</div>
+  </div></header>
   <div class="content"><main id="main" class="wrap"></main></div>
-  <nav class="tabbar" id="tabbar" aria-label="Sections"></nav>
-  <div class="sheet-back" id="sheetback" data-act="moreClose" hidden></div>
-  <div class="sheet" id="moresheet" role="dialog" aria-label="More sections" hidden></div>
 </div>
 <div class="toast" id="toast" hidden></div>
 
@@ -697,7 +743,7 @@ function builtinFoods(){
   });
   return FOODS;
 }
-const TABS = [['today','Today'],['pantry','Pantry'],['recipes','Recipes'],['planner','Planner'],['fridge','Fridge'],['groceries','Groceries'],['alerts','Notifications'],['settings','Settings']];
+const TABS = [['home','Kitchen'],['today','Today'],['pantry','Pantry'],['recipes','Recipes'],['planner','Planner'],['fridge','Fridge'],['groceries','Groceries'],['alerts','Notifications'],['settings','Settings']];
 const ICONS = {
   today:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   pantry:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M10 7.5h4M10 16.5h4"/>',
@@ -706,7 +752,6 @@ const ICONS = {
   fridge:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M5 10h14M9 5.5v2M9 13v3.5"/>',
   groceries:'<path d="M3 4h2.2l2.3 11h10.8L21 7.5H6.3"/><circle cx="9" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/>',
   alerts:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.8 2H4.2z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
-  more:'<circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/>',
   settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
 };
 
@@ -738,12 +783,10 @@ const S = {pantry:{}, recipes:{}, preps:{}, plan:{}, shopping:{}, settings:{}, f
 const loaded = new Set();
 let sb = null, user = null, mode = 'connecting', lastLoad = 0;
 const APP_VERSION = '2026.11.17.1724';
-const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4, phoneTabs:['today','recipes','planner','groceries']};
+const DEFAULT_PREFS = {theme:'system', palette:'basil', textSize:'standard', motion:'on', weekStart:'mon', defaultSlot:'Lunch', fridgeDays:4};
 const mqPhone = matchMedia('(max-width: 860px)');
 function isPhone(){ return mqPhone.matches; }
-function phoneTabs(){ const p = prefs().phoneTabs; const ok = Array.isArray(p) ? p.filter(id => TABS.some(t => t[0] === id)).slice(0, 4) : []; return ok.length ? TABS.map(t => t[0]).filter(id => ok.includes(id)) : DEFAULT_PREFS.phoneTabs; }
-mqPhone.addEventListener('change', () => { closeMore(); render(); });
-function closeMore(){ const s = document.getElementById('moresheet'), b = document.getElementById('sheetback'); if(s) s.hidden = true; if(b) b.hidden = true; }
+mqPhone.addEventListener('change', () => render());
 // Appearance saved on this device, used before sign-in and until the account's settings load.
 const LOCAL_APPEAR = (() => { try{ const a = JSON.parse(localStorage.getItem('pk-appearance') || '{}'); return a && typeof a === 'object' ? a : {}; }catch(e){ return {}; } })();
 function prefs(){ return {...DEFAULT_PREFS, ...LOCAL_APPEAR, ...(S.settings.prefs || {})}; }
@@ -757,7 +800,7 @@ function applyAppearance(){
 }
 const T0 = today();
 const ui = {
-  tab: TABS.some(t=>t[0]===lsGet('pk-tab')) ? lsGet('pk-tab') : 'today',
+  tab: (() => { let t = null; try{ t = sessionStorage.getItem('pk-tab'); }catch(e){} return TABS.some(x => x[0] === t) ? t : 'home'; })(),
   pSearch:'', pNew:{name:'',qty:'',unit:'g',category:'Produce',lowAt:''},
   rSel:null, rScale:'', rEdit:null, rSearch:'', labelFor:null, label:{},
   goalsEdit:false, gDraft:{},
@@ -1890,42 +1933,234 @@ function renderSave(){
   el.innerHTML = pendingCount() ? '<span class="dot busy"></span>Saving…' : '<span class="dot"></span>All changes saved';
 }
 function renderTabs(){
-  const n = pendingAlerts().length;
-  const lowN = list('pantry').filter(isLow).length;
-  const portions = list('preps').filter(p => p.status === 'cooked').reduce((s,p) => s + num(p.remaining), 0);
-  const listN = list('shopping').filter(s => !s.checked).length;
-  const extra = {
-    alerts: n ? `<span class="badge">${n}</span>` : '',
-    pantry: lowN ? `<span class="cnt warn" title="Running low or out">${lowN} low</span>` : '',
-    fridge: portions ? `<span class="cnt">${fq(portions)}</span>` : '',
-    groceries: listN ? `<span class="cnt">${listN}</span>` : ''
-  };
-  document.getElementById('tabs').innerHTML = TABS.map(([id,label]) =>
-    `${id==='pantry' || id==='settings'?'<div class="navsep"></div>':''}<button class="navbtn${ui.tab===id?' on':''}" data-act="tab" data-id="${id}" ${ui.tab===id?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg>${label}${extra[id]||''}</button>`).join('');
-  // Phone: a fixed bottom tab bar with 4 chosen tabs plus More.
-  const main = phoneTabs(), rest = TABS.filter(([id]) => !main.includes(id));
-  const badge = id => id === 'alerts' && n ? `<span class="badge">${n}</span>` : '';
-  const moreOn = !main.includes(ui.tab), moreBadge = rest.some(([id]) => id === 'alerts') && n ? `<span class="badge">${n}</span>` : '';
-  document.getElementById('tabbar').innerHTML = main.map(id => { const [, label] = TABS.find(x => x[0] === id); return `<button class="tabbtn${ui.tab===id?' on':''}" data-act="tab" data-id="${id}" ${ui.tab===id?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg><span>${id === 'alerts' ? 'Alerts' : label}</span>${badge(id)}</button>`; }).join('')
-    + `<button class="tabbtn${moreOn?' on':''}" data-act="moreOpen" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS.more}</svg><span>${moreOn ? esc((TABS.find(x => x[0] === ui.tab) || [,'More'])[1]) : 'More'}</span>${moreBadge}</button>`;
-  document.getElementById('moresheet').innerHTML = `<div class="sheet-grab" aria-hidden="true"></div>
-    <div class="sheet-grid">${rest.map(([id, label]) => `<button class="sheet-item${ui.tab===id?' on':''}" data-act="tab" data-id="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg><span>${label}</span>${extra[id]||''}</button>`).join('')}</div>
-    <button class="btn big" data-act="moreClose" style="margin-top:12px">Close</button>`;
-  document.getElementById('todaylabel').textContent = new Date().toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
-  document.getElementById('acctmail').textContent = user ? user.email : '';
-  document.getElementById('installbtn').hidden = !installEvent;
+  const home = ui.tab === 'home', cur = ui.tab === 'account' ? 'settings' : ui.tab, n = pendingAlerts().length;
+  const hb = document.getElementById('homebtn');
+  hb.classList.toggle('away', !home);
+  hb.setAttribute('aria-label', home ? 'Prep Kitchen, kitchen home' : 'Back to the kitchen');
+  hb.title = home ? '' : 'Back to the kitchen';
+  if(home) hb.setAttribute('aria-current', 'page'); else hb.removeAttribute('aria-current');
+  hb.querySelector('.hb-text').innerHTML = home ? 'Prep <b>Kitchen</b>' : 'Kitchen';
+  const jump = document.getElementById('jump');
+  jump.hidden = home;
+  jump.innerHTML = home ? '' : TABS.filter(([id]) => id !== 'home').map(([id, label]) => {
+    const short = id === 'alerts' ? 'Alerts' : label, on = cur === id, cnt = id === 'alerts' && n;
+    return `<button class="jumpbtn${on ? ' on' : ''}" data-act="tab" data-id="${id}" ${on ? 'aria-current="page"' : ''} aria-label="${label}${cnt ? `, ${n} to confirm` : ''}" title="${label}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg><span class="lbl">${short}</span>${cnt ? `<span class="badge" aria-hidden="true">${n}</span>` : ''}</button>`;
+  }).join('');
+}
+
+/* ---------- kitchen home ---------- */
+// Background walls, counter and floor: one drawing for the wide scene, one for the narrow (phone) scene.
+const KBG_WIDE = `<svg class="kbg wide" viewBox="0 0 1000 560" preserveAspectRatio="none" aria-hidden="true">
+  <defs><pattern id="ktile-w" width="40" height="22" patternUnits="userSpaceOnUse"><rect width="40" height="22" fill="var(--k-tile)"/><path d="M0 .6H40M0 11.6H40M.6 0V11M20.6 11V22" stroke="var(--k-grout)" stroke-width="1.2"/></pattern></defs>
+  <rect width="1000" height="520" fill="var(--k-wall)"/>
+  <rect y="22" width="1000" height="4" fill="var(--k-cab2)" opacity=".35"/>
+  <rect x="194" y="232" width="652" height="122" fill="url(#ktile-w)"/>
+  <g><rect x="492" y="30" width="196" height="214" rx="10" fill="var(--k-wood)" stroke="var(--k-line)" stroke-width="2.5"/>
+    <rect x="506" y="44" width="168" height="186" rx="4" fill="var(--k-sky)"/>
+    <circle class="k-sun" cx="630" cy="92" r="20" fill="var(--butter)"/>
+    <g class="k-moon"><path d="M640 76a20 20 0 1 0 14 34a16 16 0 1 1 -14 -34z" fill="var(--butter)"/><circle cx="548" cy="70" r="2" fill="var(--butter)"/><circle cx="584" cy="104" r="1.5" fill="var(--butter)"/><circle cx="530" cy="122" r="1.6" fill="var(--butter)"/><circle cx="662" cy="150" r="1.4" fill="var(--butter)"/></g>
+    <path d="M506 196c34-30 66-34 96-18c26-22 52-22 72-8v60h-168z" fill="var(--k-hill)"/>
+    <path d="M590 44v186M506 137h168" stroke="var(--k-wood)" stroke-width="7"/>
+    <rect x="482" y="236" width="216" height="12" rx="4" fill="var(--k-wood2)" stroke="var(--k-line)" stroke-width="2"/>
+    <path d="M516 214h30l-4 22h-22z" fill="#C46A45" stroke="var(--k-line)" stroke-width="1.5"/>
+    <path d="M531 214c-10-12-12-22-4-28c4 8 6 16 4 28zm0 0c4-14 12-20 20-18c-4 10-10 15-20 18zm0 0c-6-8-16-10-22-6c6 6 14 8 22 6z" fill="var(--accent)"/></g>
+  <rect x="190" y="346" width="660" height="18" rx="4" fill="var(--k-wood)" stroke="var(--k-line)" stroke-width="2.5"/>
+  <rect x="196" y="364" width="648" height="152" fill="var(--k-cab)" stroke="var(--k-line)" stroke-width="2.5"/>
+  <g fill="none" stroke="var(--k-cab2)" stroke-width="3">
+    <rect x="208" y="378" width="108" height="126" rx="6"/><rect x="330" y="378" width="96" height="36" rx="5"/><rect x="330" y="422" width="96" height="36" rx="5"/><rect x="330" y="466" width="96" height="38" rx="5"/>
+    <rect x="604" y="378" width="108" height="126" rx="6"/><rect x="726" y="378" width="106" height="56" rx="5"/><rect x="726" y="442" width="106" height="62" rx="5"/></g>
+  <g fill="var(--butter)" stroke="var(--k-line)" stroke-width="1.5"><circle cx="302" cy="440" r="4.5"/><rect x="364" y="393" width="28" height="6" rx="3"/><rect x="364" y="437" width="28" height="6" rx="3"/><rect x="364" y="482" width="28" height="6" rx="3"/><circle cx="618" cy="440" r="4.5"/><rect x="765" y="402" width="28" height="6" rx="3"/><rect x="765" y="470" width="28" height="6" rx="3"/></g>
+  <rect x="438" y="374" width="154" height="134" rx="8" fill="var(--k-appl)" stroke="var(--k-line)" stroke-width="2.5"/>
+  <g fill="var(--k-appl2)" stroke="var(--k-line)" stroke-width="1.5"><circle cx="462" cy="390" r="6"/><circle cx="492" cy="390" r="6"/><circle cx="538" cy="390" r="6"/><circle cx="568" cy="390" r="6"/></g>
+  <rect x="456" y="404" width="118" height="8" rx="4" fill="var(--k-appl2)" stroke="var(--k-line)" stroke-width="1.5"/>
+  <rect x="456" y="420" width="118" height="74" rx="7" fill="var(--k-glass)"/>
+  <path d="M466 430h40" stroke="#fff" stroke-opacity=".25" stroke-width="4" stroke-linecap="round"/>
+  <rect y="516" width="1000" height="44" fill="var(--k-floor)"/>
+  <path d="M0 517H1000M0 538H1000M90 517v21M260 517v21M430 517v21M600 517v21M770 517v21M940 517v21M170 538v22M340 538v22M510 538v22M680 538v22M850 538v22" stroke="var(--k-floor2)" stroke-width="2"/>
+  <g><path d="M458 312h74v30a10 10 0 0 1 -10 10h-54a10 10 0 0 1 -10 -10z" fill="var(--fat)" stroke="var(--k-line)" stroke-width="2.5"/>
+    <path d="M452 312h86" stroke="var(--k-line)" stroke-width="3" stroke-linecap="round"/><path d="M462 306q33 -14 66 0z" fill="var(--fat)" stroke="var(--k-line)" stroke-width="2"/><circle cx="495" cy="298" r="4" fill="var(--k-appl2)" stroke="var(--k-line)" stroke-width="1.5"/>
+    <path d="M450 322h-8M540 322h8" stroke="var(--k-line)" stroke-width="4" stroke-linecap="round"/>
+    <g class="k-steam" fill="none" stroke="var(--k-line)" stroke-width="2.5" stroke-linecap="round" opacity=".5"><path d="M480 286c-6-8 6-12 0-20"/><path d="M496 282c-6-8 6-12 0-20"/><path d="M512 286c-6-8 6-12 0-20"/></g></g>
+  <g><rect x="562" y="332" width="104" height="16" rx="8" fill="var(--k-wood2)" stroke="var(--k-line)" stroke-width="2"/><circle cx="652" cy="340" r="3.5" fill="var(--k-wall)"/>
+    <circle cx="590" cy="324" r="12" fill="var(--fat)" stroke="var(--k-line)" stroke-width="2"/><path d="M586 312q4 -5 8 0" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <g fill="color-mix(in srgb, var(--accent) 35%, #EAF5D8)" stroke="var(--accent)" stroke-width="2"><ellipse cx="614" cy="331" rx="7" ry="3.5"/><ellipse cx="628" cy="331" rx="7" ry="3.5"/></g></g>
+</svg>`;
+const KBG_TALL = `<svg class="kbg tall" viewBox="0 0 360 640" preserveAspectRatio="none" aria-hidden="true">
+  <defs><pattern id="ktile-t" width="36" height="20" patternUnits="userSpaceOnUse"><rect width="36" height="20" fill="var(--k-tile)"/><path d="M0 .6H36M0 10.6H36M.6 0V10M18.6 10V20" stroke="var(--k-grout)" stroke-width="1.1"/></pattern></defs>
+  <rect width="360" height="620" fill="var(--k-wall)"/>
+  <rect y="190" width="360" height="3" fill="var(--k-cab2)" opacity=".35"/>
+  <rect x="138" y="312" width="104" height="140" fill="url(#ktile-t)"/>
+  <rect x="136" y="448" width="108" height="14" rx="3" fill="var(--k-wood)" stroke="var(--k-line)" stroke-width="2"/>
+  <rect x="140" y="462" width="100" height="156" fill="var(--k-cab)" stroke="var(--k-line)" stroke-width="2"/>
+  <g fill="none" stroke="var(--k-cab2)" stroke-width="2.5"><rect x="150" y="472" width="80" height="30" rx="4"/><rect x="150" y="510" width="80" height="98" rx="5"/></g>
+  <g fill="var(--butter)" stroke="var(--k-line)" stroke-width="1.2"><rect x="178" y="484" width="24" height="5" rx="2.5"/><circle cx="220" cy="560" r="4"/></g>
+  <rect y="616" width="360" height="24" fill="var(--k-floor)"/>
+  <path d="M0 617H360M60 617v23M160 617v23M260 617v23" stroke="var(--k-floor2)" stroke-width="2"/>
+</svg>`;
+const KART = {
+  clock: () => {
+    const d = new Date(), m = d.getMinutes(), h = d.getHours() % 12 + m / 60;
+    const ticks = Array.from({length: 12}, (_, i) => `<line x1="45" y1="${i % 3 ? 16 : 15}" x2="45" y2="${i % 3 ? 19 : 22}" stroke="var(--k-paper-ink)" stroke-width="${i % 3 ? 1.6 : 2.8}" stroke-linecap="round" transform="rotate(${i * 30} 45 45)"/>`).join('');
+    return `<svg viewBox="0 0 90 90" aria-hidden="true"><circle cx="45" cy="45" r="41" fill="var(--k-cab)" stroke="var(--k-line)" stroke-width="2.5"/><circle cx="45" cy="45" r="33" fill="var(--k-paper)"/>${ticks}
+      <text x="45" y="64" text-anchor="middle" font-family="Figtree,sans-serif" font-size="7.5" font-weight="700" letter-spacing=".8" fill="var(--k-paper-ink2)">TODAY</text>
+      <line x1="45" y1="45" x2="45" y2="29" stroke="var(--k-paper-ink)" stroke-width="4" stroke-linecap="round" transform="rotate(${h * 30} 45 45)"/>
+      <g transform="rotate(${m * 6} 45 45)"><g class="kp" style="--o:rotate(360deg);transform-box:view-box;transform-origin:45px 45px"><line x1="45" y1="49" x2="45" y2="19" stroke="var(--accent)" stroke-width="2.6" stroke-linecap="round"/></g></g>
+      <circle cx="45" cy="45" r="3.4" fill="var(--k-paper-ink)"/></svg>`;
+  },
+  calendar: () => {
+    const t = today(), d = parseD(t), ws = weekStart(t);
+    const days = Array.from({length: 7}, (_, i) => addDays(ws, i)), planned = new Set(list('plan').map(e => e.date));
+    const dots = days.map((x, i) => `<circle cx="${24 + i * 12}" cy="146" r="${x === t ? 4.4 : 3.4}" fill="${planned.has(x) ? 'var(--accent)' : 'none'}" stroke="${x === t ? 'var(--k-paper-ink)' : 'var(--k-paper-ink2)'}" stroke-width="${x === t ? 1.8 : 1.2}"/>`).join('');
+    return `<svg viewBox="0 0 120 165" aria-hidden="true"><path d="M60 8L24 30M60 8L96 30" stroke="var(--k-line)" stroke-width="1.5" fill="none"/><circle cx="60" cy="8" r="4.5" fill="var(--k-wood2)" stroke="var(--k-line)" stroke-width="1.5"/>
+      <g class="kp" style="--o:rotate(-7deg);transform-box:view-box;transform-origin:60px 8px">
+        <rect x="8" y="26" width="104" height="134" rx="9" fill="var(--k-paper)" stroke="var(--k-line)" stroke-width="2.5"/>
+        <path d="M8 58V35a9 9 0 0 1 9-9h86a9 9 0 0 1 9 9v23z" fill="var(--accent)" stroke="var(--k-line)" stroke-width="2.5"/>
+        <text x="60" y="47.5" text-anchor="middle" font-family="Figtree,sans-serif" font-size="12" font-weight="700" letter-spacing="1" fill="var(--accent-ink)">${esc(d.toLocaleDateString(undefined, {month: 'short'}).toUpperCase())}</text>
+        <text x="60" y="108" text-anchor="middle" font-family="Bricolage Grotesque,Figtree,sans-serif" font-size="46" font-weight="700" fill="var(--k-paper-ink)">${d.getDate()}</text>
+        <text x="60" y="126" text-anchor="middle" font-family="Figtree,sans-serif" font-size="11" font-weight="600" fill="var(--k-paper-ink2)">${esc(d.toLocaleDateString(undefined, {weekday: 'long'}))}</text>
+        ${dots}
+        <circle cx="34" cy="26" r="3" fill="var(--k-paper)" stroke="var(--k-line)" stroke-width="1.5"/><circle cx="86" cy="26" r="3" fill="var(--k-paper)" stroke="var(--k-line)" stroke-width="1.5"/>
+      </g></svg>`;
+  },
+  shelf: n => {
+    const cols = ['var(--accent)', 'var(--butter)', 'var(--protein)', 'var(--fat)', 'var(--carbs)', 'var(--k-cab2)', 'var(--k-apron)'];
+    const ws = [15, 12, 17, 13, 16, 12, 14], hs = [66, 58, 72, 54, 64, 60, 50];
+    const count = Math.max(3, Math.min(7, n));
+    let x = 10, books = '';
+    for(let i = 0; i < count; i++){
+      const w = ws[i], h = hs[i], y = 100 - h;
+      const book = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2.5" fill="${cols[i]}" stroke="var(--k-line)" stroke-width="2"/><path d="M${x + 3} ${y + 9}h${w - 6}M${x + 3} ${y + h - 10}h${w - 6}" stroke="var(--k-paper)" stroke-opacity=".7" stroke-width="2"/>`;
+      books += i === 1 ? `<g class="kp" style="--o:translate(-2px,-14px) rotate(-12deg);transform-origin:left bottom">${book}</g>` : book;
+      x += w + 1;
+    }
+    return `<svg viewBox="0 0 150 120" aria-hidden="true"><path d="M24 108v10l-10-10zM126 108v10l10-10z" fill="var(--k-wood2)" stroke="var(--k-line)" stroke-width="1.5"/>
+      ${books}
+      <path d="M124 80h20l-3 20h-14z" fill="#C46A45" stroke="var(--k-line)" stroke-width="1.5"/>
+      <path d="M134 80c-12-6-14-18-8-24c6 6 9 14 8 24zm0 0c2-14 10-22 18-20c-2 10-8 17-18 20z" fill="var(--accent)" stroke="var(--k-line)" stroke-width="1"/>
+      <rect x="2" y="100" width="146" height="9" rx="2.5" fill="var(--k-wood)" stroke="var(--k-line)" stroke-width="2"/></svg>`;
+  },
+  fridge: n => {
+    const pots = ['var(--accent)', 'var(--butter)', 'var(--protein)', 'var(--fat)', 'var(--carbs)', 'var(--k-cab2)'];
+    let inside = '';
+    for(let i = 0; i < Math.min(9, Math.max(0, Math.round(n))); i++){
+      const shelf = Math.floor(i / 3), col = i % 3, x = 22 + col * 44, y = 196 + shelf * 80;
+      inside += `<rect x="${x}" y="${y}" width="38" height="26" rx="5" fill="var(--k-paper)" stroke="var(--k-line)" stroke-width="1.5"/><rect x="${x - 1}" y="${y - 5}" width="40" height="8" rx="3" fill="${pots[i % pots.length]}" stroke="var(--k-line)" stroke-width="1.5"/>`;
+    }
+    if(!inside) inside = `<rect x="118" y="188" width="18" height="40" rx="5" fill="var(--k-sky)" stroke="var(--k-line)" stroke-width="1.5"/><rect x="122" y="180" width="10" height="10" rx="2" fill="var(--accent)"/>`;
+    return `<svg viewBox="0 0 170 470" aria-hidden="true">
+      <rect x="18" y="456" width="24" height="10" rx="3" fill="var(--k-appl2)" stroke="var(--k-line)" stroke-width="1.5"/><rect x="128" y="456" width="24" height="10" rx="3" fill="var(--k-appl2)" stroke="var(--k-line)" stroke-width="1.5"/>
+      <rect x="4" y="4" width="162" height="456" rx="18" fill="var(--k-appl2)" stroke="var(--k-line)" stroke-width="3"/>
+      <rect x="12" y="156" width="146" height="296" rx="8" fill="var(--k-glow)"/>
+      <g fill="var(--k-appl)" stroke="var(--k-line)" stroke-width="1"><rect x="12" y="222" width="146" height="5"/><rect x="12" y="302" width="146" height="5"/><rect x="12" y="382" width="146" height="5"/></g>
+      ${inside}
+      <rect x="4" y="4" width="162" height="142" rx="18" fill="var(--k-appl)" stroke="var(--k-line)" stroke-width="3"/>
+      <rect x="146" y="64" width="9" height="56" rx="4.5" fill="var(--k-appl2)" stroke="var(--k-line)" stroke-width="1.5"/>
+      <g class="kp" style="--o:scaleX(.2) skewY(-5deg);transform-origin:left center">
+        <rect x="4" y="150" width="162" height="310" rx="18" fill="var(--k-appl)" stroke="var(--k-line)" stroke-width="3"/>
+        <rect x="146" y="172" width="9" height="90" rx="4.5" fill="var(--k-appl2)" stroke="var(--k-line)" stroke-width="1.5"/>
+        <rect x="26" y="186" width="100" height="58" rx="11" fill="var(--accent)" stroke="var(--k-line)" stroke-width="2"/>
+        <text x="76" y="216" text-anchor="middle" font-family="Bricolage Grotesque,Figtree,sans-serif" font-size="25" font-weight="700" fill="var(--accent-ink)">${fq(n)}</text>
+        <text x="76" y="234" text-anchor="middle" font-family="Figtree,sans-serif" font-size="11" font-weight="700" fill="var(--accent-ink)">${n === 1 ? 'portion' : 'portions'}</text>
+        <circle cx="44" cy="300" r="10" fill="var(--fat)" stroke="var(--k-line)" stroke-width="1.5"/><path d="M44 290q4 -7 10 -5" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <ellipse cx="78" cy="318" rx="13" ry="9" fill="var(--butter)" stroke="var(--k-line)" stroke-width="1.5"/>
+        <path d="M108 296l4 8 9 1-6 6 2 9-9-5-8 5 2-9-6-6 9-1z" fill="var(--protein)" stroke="var(--k-line)" stroke-width="1.5"/>
+      </g></svg>`;
+  },
+  note: n => `<svg viewBox="0 0 80 80" aria-hidden="true"><g class="kp" style="--o:rotate(7deg) scale(1.08);transform-box:view-box;transform-origin:40px 10px">
+      <g transform="rotate(-4 40 40)"><path d="M10 12h60v52l-12 12h-48z" fill="var(--butter)" stroke="var(--k-line)" stroke-width="1.8"/><path d="M70 64l-12 12v-12z" fill="var(--k-paper-ink)" opacity=".18"/>
+      ${n ? `<text x="38" y="48" text-anchor="middle" font-family="Bricolage Grotesque,Figtree,sans-serif" font-size="26" font-weight="700" fill="var(--k-paper-ink)">${n}</text><text x="38" y="62" text-anchor="middle" font-family="Figtree,sans-serif" font-size="9" font-weight="700" fill="var(--k-paper-ink)">to confirm</text>`
+        : `<path d="M26 40l9 9 17-19" fill="none" stroke="var(--k-paper-ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="38" y="64" text-anchor="middle" font-family="Figtree,sans-serif" font-size="9" font-weight="700" fill="var(--k-paper-ink)">All caught up</text>`}</g>
+      <circle cx="40" cy="12" r="6.5" fill="${n ? 'var(--bad)' : 'var(--accent)'}" stroke="var(--k-line)" stroke-width="1.5"/></g></svg>`,
+  pantry: () => {
+    const jar = (x, y, c) => `<rect x="${x}" y="${y}" width="20" height="28" rx="5" fill="color-mix(in srgb, ${c} 55%, var(--k-paper))" stroke="var(--k-line)" stroke-width="1.5"/><rect x="${x + 2}" y="${y - 5}" width="16" height="7" rx="2" fill="${c}" stroke="var(--k-line)" stroke-width="1.5"/>`;
+    const can = (x, y, c) => `<rect x="${x}" y="${y}" width="18" height="26" rx="3" fill="var(--k-appl2)" stroke="var(--k-line)" stroke-width="1.5"/><rect x="${x}" y="${y + 7}" width="18" height="12" fill="${c}"/>`;
+    const box = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${c}" stroke="var(--k-line)" stroke-width="1.5"/><rect x="${x + 4}" y="${y + 8}" width="${w - 8}" height="${Math.round(h / 3)}" rx="2" fill="var(--k-paper)" opacity=".8"/>`;
+    const shelves = [120, 220, 320, 420];
+    const items = [
+      jar(18, 87, 'var(--carbs)') + jar(42, 87, 'var(--fat)') + box(72, 74, 26, 46, 'var(--protein)') + jar(104, 87, 'var(--accent)'),
+      can(18, 194, 'var(--fat)') + can(40, 194, 'var(--fat)') + can(62, 194, 'var(--accent)') + box(90, 178, 40, 42, 'var(--butter)'),
+      box(18, 270, 34, 50, 'var(--k-apron)') + jar(58, 292, 'var(--butter)') + jar(82, 292, 'var(--protein)') + can(108, 294, 'var(--carbs)'),
+      `<path d="M20 420c0-30 4-38 22-38s22 8 22 38z" fill="var(--k-bag)" stroke="var(--k-line)" stroke-width="1.5"/>` + box(72, 380, 28, 40, 'var(--accent)') + jar(108, 392, 'var(--fat)')
+    ].join('');
+    const door = (x, side) => `<g class="kp" style="--o:scaleX(.16) skewY(${side === 'left' ? -4 : 4}deg);transform-origin:${side} center">
+      <rect x="${x}" y="22" width="70" height="470" rx="6" fill="var(--k-cab)" stroke="var(--k-line)" stroke-width="2.5"/>
+      <rect x="${x + 9}" y="36" width="52" height="200" rx="4" fill="none" stroke="var(--k-cab2)" stroke-width="3"/><rect x="${x + 9}" y="252" width="52" height="226" rx="4" fill="none" stroke="var(--k-cab2)" stroke-width="3"/>
+      <circle cx="${side === 'left' ? x + 62 : x + 8}" cy="244" r="4.5" fill="var(--butter)" stroke="var(--k-line)" stroke-width="1.5"/></g>`;
+    return `<svg viewBox="0 0 150 500" aria-hidden="true">
+      <rect x="2" y="12" width="146" height="486" rx="8" fill="var(--k-cab2)" stroke="var(--k-line)" stroke-width="2.5"/>
+      <rect x="10" y="22" width="130" height="470" fill="var(--k-wood)"/>
+      ${items}
+      ${shelves.map(y => `<rect x="10" y="${y}" width="130" height="6" fill="var(--k-wood2)"/>`).join('')}
+      ${door(5, 'left')}${door(75, 'right')}
+      <rect x="0" y="2" width="150" height="16" rx="4" fill="var(--k-cab)" stroke="var(--k-line)" stroke-width="2.5"/></svg>`;
+  },
+  bag: () => `<svg viewBox="0 0 120 140" aria-hidden="true"><g class="kp" style="--o:rotate(-4deg);transform-origin:center bottom">
+      <g class="kp" style="--o:translateY(-14px)">
+        <g transform="rotate(16 74 44)"><rect x="66" y="4" width="17" height="80" rx="8.5" fill="#D9A35B" stroke="var(--k-line)" stroke-width="2"/><path d="M70 18l9-4M70 32l9-4M70 46l9-4" stroke="#A8743A" stroke-width="2" stroke-linecap="round"/></g>
+        <path d="M38 52c-14-12-16-30-6-38c8 8 10 20 6 38zm0 0c-2-18 8-30 20-32c-2 14-8 24-20 32zm0 0c-10-6-22-6-28 0c8 6 18 6 28 0z" fill="var(--accent)" stroke="var(--k-line)" stroke-width="1.5"/>
+        <path d="M94 56l8-34 8 2z" fill="#E8833A" stroke="var(--k-line)" stroke-width="1.5"/><path d="M104 22c-2-8 2-12 6-12M104 22c4-6 10-6 12-4" stroke="var(--accent)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <g transform="rotate(-10 28 46)"><rect x="16" y="26" width="26" height="34" rx="2" fill="var(--k-paper)" stroke="var(--k-line)" stroke-width="1.5"/><path d="M21 34h16M21 41h12M21 48h14" stroke="var(--k-paper-ink2)" stroke-width="2" stroke-linecap="round"/></g>
+      </g>
+      <path d="M12 54h96l-7 82h-82z" fill="var(--k-bag)" stroke="var(--k-line)" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M12 54h96l-1 13h-94z" fill="var(--k-bag2)" stroke="var(--k-line)" stroke-width="2" stroke-linejoin="round"/>
+      <circle cx="60" cy="100" r="13" fill="none" stroke="var(--k-bag2)" stroke-width="3"/><path d="M60 108c-6-8-4-15 3-17c1 7-1 12-3 17z" fill="var(--accent)"/>
+    </g></svg>`,
+  scan: () => `<svg viewBox="0 0 80 80" aria-hidden="true">
+      <path d="M20 78h40l-6-12h-28z" fill="var(--k-wood2)" stroke="var(--k-line)" stroke-width="1.5"/>
+      <g class="kp" style="--o:translateY(-5px) rotate(-4deg);transform-origin:center bottom">
+        <rect x="19" y="4" width="42" height="68" rx="8" fill="var(--k-phone)" stroke="var(--k-line)" stroke-width="1.5"/>
+        <rect x="23" y="11" width="34" height="55" rx="3" fill="var(--k-paper)"/>
+        <circle cx="40" cy="7.5" r="1.4" fill="#6B746F"/>
+        <path d="M28 19h16M28 25h22M28 31h12M28 37h20M28 43h14M28 49h22" stroke="var(--k-paper-ink2)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M28 57h24" stroke="var(--k-paper-ink)" stroke-width="3" stroke-linecap="round"/>
+        <g class="k-scanline"><rect x="21" y="34" width="38" height="10" fill="var(--bad)" opacity=".18"/><rect x="21" y="38" width="38" height="2.2" rx="1" fill="var(--bad)"/></g>
+      </g></svg>`,
+  apron: initial => `<svg viewBox="0 0 70 140" aria-hidden="true"><circle cx="35" cy="8" r="5.5" fill="var(--k-wood2)" stroke="var(--k-line)" stroke-width="1.5"/>
+      <g class="kp" style="--o:rotate(8deg);transform-box:view-box;transform-origin:35px 8px">
+        <path d="M35 9C22 14 19 28 21 40M35 9c13 5 16 19 14 31" fill="none" stroke="var(--k-wood2)" stroke-width="3"/>
+        <path d="M20 38h30l3 18q14 3 14 12l-5 64a6 6 0 0 1-6 6h-42a6 6 0 0 1-6-6l-5-64q0-9 14-12z" fill="var(--k-apron)" stroke="var(--k-line)" stroke-width="2.2" stroke-linejoin="round"/>
+        <path d="M5 66l-4 14M65 66l4 14" stroke="var(--k-apron)" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="35" cy="66" r="10" fill="var(--k-paper)" stroke="var(--k-line)" stroke-width="1.5"/>
+        <text x="35" y="70.5" text-anchor="middle" font-family="Bricolage Grotesque,Figtree,sans-serif" font-size="12.5" font-weight="700" fill="var(--k-paper-ink)">${esc(initial)}</text>
+        <rect x="20" y="94" width="30" height="22" rx="4" fill="none" stroke="var(--k-paper)" stroke-opacity=".75" stroke-width="2" stroke-dasharray="3 3"/>
+      </g></svg>`
+};
+// Positions: b = [x, y, w, h] on the wide scene, p = the same on the narrow one.
+function viewHome(){
+  const t = today(), n = pendingAlerts().length;
+  const portions = list('preps').filter(p => p.status === 'cooked').reduce((s, p) => s + num(p.remaining), 0);
+  const lowN = list('pantry').filter(isLow).length, listN = list('shopping').filter(s => !s.checked).length;
+  const recN = list('recipes').length, todayN = list('plan').filter(e => e.date === t).length;
+  const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  const objs = [
+    {id: 'today', label: 'Today', art: KART.clock(), b: [228, 38, 92, 92], p: [14, 28, 86, 86], sr: todayN ? `${todayN} meal${todayN === 1 ? '' : 's'} planned today` : 'nothing planned yet today'},
+    {id: 'fridge', label: 'Fridge', extra: portions ? `<em aria-hidden="true">${fq(portions)}</em>` : '', art: KART.fridge(portions), b: [24, 70, 170, 470], p: [12, 266, 128, 354], sr: `${fq(portions)} portion${portions === 1 ? '' : 's'} ready`},
+    {id: 'alerts', label: 'Alerts', extra: n ? `<span class="badge" aria-hidden="true">${n}</span>` : '', art: KART.note(n), b: [46, 90, 80, 80], p: [28, 280, 64, 64], sr: n ? `${n} meal${n === 1 ? '' : 's'} to confirm` : 'all caught up'},
+    {id: 'pantry', label: 'Pantry', extra: lowN ? `<em class="warn" aria-hidden="true">${lowN} low</em>` : '', art: KART.pantry(), b: [840, 40, 150, 500], p: [240, 260, 108, 360], sr: lowN ? `${lowN} item${lowN === 1 ? '' : 's'} running low` : ''},
+    {id: 'recipes', label: 'Recipes', extra: recN ? `<em aria-hidden="true">${recN}</em>` : '', art: KART.shelf(recN), b: [690, 76, 150, 120], p: [244, 64, 108, 86], sr: `${recN} recipe${recN === 1 ? '' : 's'}`},
+    {id: 'planner', label: 'Planner', art: KART.calendar(), b: [344, 30, 120, 165], p: [122, 16, 108, 149], sr: 'meal calendar'},
+    {id: 'groceries', label: 'Groceries', extra: listN ? `<em aria-hidden="true">${listN}</em>` : '', art: KART.bag(), b: [306, 214, 120, 140], p: [146, 352, 86, 100], sr: listN ? `${listN} on your list` : ''},
+    {id: 'scan', label: 'Scan', art: KART.scan(), b: [716, 272, 80, 80], p: [42, 196, 70, 70], sr: 'scan a receipt'},
+    {id: 'settings', label: 'Settings', art: KART.apron(String((user && user.email) || '?')[0].toUpperCase()), b: [234, 146, 66, 132], p: [158, 196, 56, 112], sr: 'account and appearance'}
+  ];
+  return `
+  <div class="pagehead"><div><h1>${greet}</h1><p class="sub">${esc(new Date().toLocaleDateString(undefined, {weekday: 'long', month: 'long', day: 'numeric'}))}. Tap anything in the kitchen to open it.</p></div></div>
+  <div class="kwrap"><div class="kitchen" role="group" aria-label="Your kitchen">${KBG_WIDE}${KBG_TALL}
+    ${objs.map(o => `<button class="kobj k-${o.id}${ui.kOpen === o.id ? ' open' : ''}" data-act="kGo" data-id="${o.id}" aria-label="${esc(o.label + (o.sr ? ', ' + o.sr : ''))}" style="--x:${o.b[0]};--y:${o.b[1]};--w:${o.b[2]};--h:${o.b[3]};--px:${o.p[0]};--py:${o.p[1]};--pw:${o.p[2]};--ph:${o.p[3]}">${o.art}<span class="klbl">${o.label}${o.extra || ''}</span></button>`).join('')}
+  </div></div>`;
 }
 function render(){
   if(!user) return;
   const a = document.activeElement, fid = a && a.id;
   let s1 = null, s2 = null; try{ s1 = a.selectionStart; s2 = a.selectionEnd; }catch(e){}
   renderTabs(); renderSave();
+  try{ sessionStorage.setItem('pk-tab', ui.tab); }catch(e){}
   let html = '';
   const offNote = `<div class="notice row" style="justify-content:space-between">Can’t reach your saved data right now. Check your internet connection. Your kitchen reloads when you’re back online.<button class="btn sm" data-act="retry">Try again</button></div>`;
   if(loaded.size < COLS.length) html = mode === 'off' ? offNote : `<div class="empty">Loading your kitchen…</div>`;
   else {
     if(mode === 'off') html += offNote;
-    html += ({today:viewToday, pantry:viewPantry, recipes:viewRecipes, planner:viewPlanner, fridge:viewFridge, groceries:viewGroceries, alerts:viewAlerts, settings:viewSettings, account:viewSettings, scan:viewScan})[ui.tab]();
+    html += ({home:viewHome, today:viewToday, pantry:viewPantry, recipes:viewRecipes, planner:viewPlanner, fridge:viewFridge, groceries:viewGroceries, alerts:viewAlerts, settings:viewSettings, account:viewSettings, scan:viewScan})[ui.tab]();
   }
   $main.innerHTML = html;
   if(fid){
@@ -2050,8 +2285,6 @@ function viewSettings(){
               </button>`; }).join('')}</div>`).join('')}
         </div>
         <div class="setrow"><div><b>Background animation</b><p class="small muted">Moving scenes behind the app. Turn off to save battery. It's also off when your device is set to reduce motion.</p></div>${seg('motion', [['on','On'],['off','Off']])}</div>
-        <div class="setrow palrow"><div><b>Phone tab bar</b><p class="small muted">Pick up to 4 tabs for the bar at the bottom of the screen on phones. Everything else is under More.</p></div>
-          <div class="chips">${TABS.map(([id, label]) => { const on = phoneTabs().includes(id); return `<button class="chip${on ? ' on' : ''}" data-act="phoneTab" data-id="${id}" aria-pressed="${on}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg>${label}</button>`; }).join('')}</div></div>
         <div class="setrow"><div><b>Text size</b><p class="small muted">Makes everything a little bigger.</p></div>${seg('textSize', [['standard','Standard'],['large','Large'],['larger','Larger']])}</div>
       </div>
       <div class="card stack">
@@ -2878,7 +3111,7 @@ function cookPrep(id){
 
 const ACT = {
   rMeal: el => { const m = ui.rEdit.meals || (ui.rEdit.meals = []); const v = el.dataset.v; const i = m.indexOf(v); if(i >= 0) m.splice(i, 1); else m.push(v); },
-  randGo: () => { ui.tab = 'planner'; lsSet('pk-tab', 'planner'); setTimeout(() => { const c = document.getElementById('randcard'); if(c) c.scrollIntoView({block: 'start', behavior: 'smooth'}); }, 60); },
+  randGo: () => { ui.tab = 'planner'; setTimeout(() => { const c = document.getElementById('randcard'); if(c) c.scrollIntoView({block: 'start', behavior: 'smooth'}); }, 60); },
   randSlot: el => { ui.rand.slots[el.dataset.v] = !ui.rand.slots[el.dataset.v]; },
   randClear: () => { ui.rand.plan = null; },
   randMake: () => {
@@ -2982,18 +3215,17 @@ const ACT = {
     if(ui.scan.imgUrl) URL.revokeObjectURL(ui.scan.imgUrl);
     ui.scan = null; ui.tab = 'pantry'; window.scrollTo(0, 0);
   },
-  moreOpen: () => { document.getElementById('moresheet').hidden = false; document.getElementById('sheetback').hidden = false; },
-  moreClose: () => closeMore(),
-  phoneTab: el => {
-    const id = el.dataset.id, cur = phoneTabs();
-    let next = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id];
-    if(next.length > 4){ toast('The tab bar holds 4. Remove one first.'); return; }
-    if(!next.length){ toast('Keep at least 1 tab in the bar.'); return; }
-    put('settings', 'prefs', {...prefs(), phoneTabs: TABS.map(t => t[0]).filter(x => next.includes(x))});
+  kGo: el => {
+    // Kitchen objects. On touch screens the door swings open for a moment before the section shows.
+    const id = el.dataset.id;
+    if(ui.kOpen) return;
+    const go = () => { ui.kOpen = null; if(id === 'scan') ACT.scanOpen(); else ACT.tab({dataset: {id}}); };
+    if(!mqReduce.matches && matchMedia('(hover: none)').matches){ ui.kOpen = id; setTimeout(() => { go(); render(); }, 320); }
+    else go();
   },
-  tab: el => { closeMore(); ui.tab = el.dataset.id === 'account' ? 'settings' : el.dataset.id; lsSet('pk-tab', ui.tab); ui.confirm = null; ui.gDraftSettings = false; ui.goalsEdit = false; window.scrollTo(0,0); },
+  tab: el => { ui.tab = el.dataset.id === 'account' ? 'settings' : el.dataset.id; ui.confirm = null; ui.gDraftSettings = false; ui.goalsEdit = false; window.scrollTo(0,0); },
   go: el => ACT.tab(el),
-  goWeek: el => { ui.week = weekStart(el.dataset.date); ui.tab = 'planner'; lsSet('pk-tab','planner'); window.scrollTo(0,0); },
+  goWeek: el => { ui.week = weekStart(el.dataset.date); ui.tab = 'planner'; window.scrollTo(0,0); },
   goalsEdit: () => { ui.gDraft = Object.fromEntries(Object.entries(goals()).map(([k,v]) => [k, String(v)])); ui.goalsEdit = true; },
   goalsCancel: () => { ui.goalsEdit = false; },
   goalsSave: () => { put('settings', 'goals', Object.fromEntries(Object.keys(DEFAULT_GOALS).map(k => [k, num(ui.gDraft[k]) || DEFAULT_GOALS[k]]))); ui.goalsEdit = false; toast('Goals saved.'); },
@@ -3182,7 +3414,7 @@ const ACT = {
       nutrition: Object.fromEntries(NUTR.map(([k]) => [k, calc ? (k === 'calories' ? Math.round(calc.perServing[k]) : r1(calc.perServing[k])) : num(d.nutrition[k])]))});
     ui.rEdit = null; ui.rSel = id; ui.rScale = ''; toast('Recipe saved.');
   },
-  prepThis: el => { const r = S.recipes[el.dataset.id]; ui.prep.recipeId = el.dataset.id; ui.prep.portions = String(r.servings); ui.tab = 'planner'; lsSet('pk-tab','planner'); window.scrollTo(0,0); },
+  prepThis: el => { const r = S.recipes[el.dataset.id]; ui.prep.recipeId = el.dataset.id; ui.prep.portions = String(r.servings); ui.tab = 'planner'; window.scrollTo(0,0); },
   listMissing: el => {
     const r = S.recipes[el.dataset.id];
     const miss = missingOf(recipeCheck(r, num(el.dataset.portions)));
